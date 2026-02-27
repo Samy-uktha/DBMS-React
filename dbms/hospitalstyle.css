@@ -1,0 +1,136 @@
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:'Segoe UI', sans-serif;
+}
+
+
+/* CENTER PAGE */
+
+.page-center{
+
+    min-height:100vh;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    background:linear-gradient(to right,#fff5f5,#ffeaea);
+}
+
+
+/* CARD */
+
+.hospital-container{
+
+    width:720px;
+    padding:45px;
+
+    background:white;
+    border-radius:22px;
+
+    box-shadow:0 20px 50px rgba(0,0,0,0.12);
+
+    transition:0.3s;
+}
+
+.hospital-container:hover{
+    transform:scale(1.01);
+}
+
+
+/* TEXT */
+
+h1{
+    margin-bottom:8px;
+}
+
+p{
+    margin-bottom:30px;
+    color:gray;
+}
+
+
+/* GRID FORM */
+
+.hospital-form{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:22px;
+}
+
+.full{
+    grid-column:span 2;
+}
+
+
+/* INPUT DESIGN */
+
+.form-group{
+    display:flex;
+    flex-direction:column;
+}
+
+label{
+    margin-bottom:6px;
+    font-weight:500;
+}
+
+input,select{
+
+    padding:12px;
+    border-radius:10px;
+    border:1px solid #ddd;
+
+    transition:0.25s;
+}
+
+
+/* FOCUS EFFECT */
+
+input:focus,
+select:focus{
+
+    outline:none;
+    border-color:#cc0000;
+
+    box-shadow:0 0 8px rgba(204,0,0,0.2);
+}
+
+
+/* BUTTON */
+
+.register-btn{
+
+    grid-column:span 2;
+
+    padding:16px;
+    margin-top:10px;
+
+    border:none;
+    border-radius:12px;
+
+    font-size:17px;
+    font-weight:600;
+
+    color:white;
+
+    cursor:pointer;
+
+    background:linear-gradient(to right,#990000,#ff6666);
+
+    transition:0.3s;
+}
+
+.register-btn:hover{
+
+    transform:translateY(-3px);
+
+    box-shadow:0 10px 20px rgba(0,0,0,0.18);
+
+    background:linear-gradient(to right,#7a0000,#ff4d4d);
+}

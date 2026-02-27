@@ -1,0 +1,151 @@
+/* RESET */
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* BODY */
+body{
+    font-family: 'Segoe UI', sans-serif;
+}
+
+/* NAVBAR */
+.navbar{
+    position: sticky;   /* better than fixed */
+    top: 0;
+
+    height: 75px;
+    width: 100%;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 0 20px;
+
+    /* Premium medical gradient */
+    background: linear-gradient(90deg, #121212, #8b0000, #ffb6a3);
+
+    z-index: 1000;
+
+    /* soft shadow -> makes it look expensive */
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+/* LOGO SECTION */
+.logo-container{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: white;
+    font-weight: bold;
+    font-size: 20px;
+}
+
+/* LOGO IMAGE */
+.logo{
+    height: 55px;
+    width: auto;
+    display: block;
+}
+
+/* LOGIN SECTION (example content spacing) */
+.login{
+    margin-top: 40px;
+    padding: 20px;
+    font-size: 22px;
+}
+.page-center{
+    height: calc(100vh - 75px); /* subtract navbar */
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    background: #fffafa;
+}
+.form-box{
+    width: 430px;              /* increased from 360 */
+    padding: 55px;             /* more breathing space */
+
+    background: white;
+    border-radius: 18px;       /* smoother corners */
+
+    box-shadow: 0 18px 50px rgba(0,0,0,0.18);
+
+    text-align: center;
+
+    transition: 0.35s;
+}
+
+/* subtle floating effect */
+.form-box:hover{
+    transform: translateY(-6px);
+}
+form input{
+    width: 100%;
+    padding: 14px;
+    margin: 14px 0;
+
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+
+    font-size: 15px;
+    transition: 0.25s;
+}
+
+form input:focus{
+    outline: none;
+    border-color: #b30000;
+    box-shadow: 0 0 6px rgba(179,0,0,0.25);
+}
+.login-btn{
+    width: 100%;
+    padding: 14px;
+    margin-top: 10px;
+
+    border: none;
+    border-radius: 10px;
+
+    background: linear-gradient(90deg,#b30000,#ff4d4d);
+    color: white;
+
+    font-size: 16px;
+    font-weight: bold;
+
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.login-btn:hover{
+    transform: scale(1.03);
+    box-shadow: 0 8px 20px rgba(179,0,0,0.35);
+}
+.signup-text{
+    margin-top: 28px;   /* creates space from login button */
+    margin-bottom: 12px;
+    color: #555;
+    font-size: 20px;
+}
+.signup-btn{
+    margin-left: 8px;
+    padding: 14px;
+
+    border-radius: 10px;
+    border: 2px solid #e85d5d;
+
+    background: transparent;
+    color: #e85d5d;
+
+    font-weight: bold;
+    font-size: 15px;
+
+    cursor: pointer;
+
+    transition: all 0.3s ease;   /* ⭐ THIS creates smooth animation */
+}
+.signup-btn:hover{
+    background: #e85d5d;
+    color: white;
+}

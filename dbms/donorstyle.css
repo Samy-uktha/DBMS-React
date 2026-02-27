@@ -1,0 +1,122 @@
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(to right, #ffe6e6, #fff5f5);
+    margin: 0;
+}
+
+/* ================= REGISTRATION ================= */
+
+.container {
+    width: 65%;
+    margin: auto;
+    background: white;
+    padding: 30px;
+    margin-top: 40px;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+h2 {
+    text-align: center;
+    color: #b30000;
+}
+
+.section {
+    margin-bottom: 25px;
+}
+
+.section h3 {
+    color: #cc0000;
+    border-bottom: 2px solid #ffcccc;
+    padding-bottom: 5px;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+label {
+    font-weight: 600;
+}
+
+input, select {
+    padding: 10px;
+    border-radius: 8px;
+    border: 2px solid #ddd;
+    transition: 0.3s;
+    outline: none;
+}
+
+input:focus, select:focus {
+    border-color: #ff1a1a;
+    box-shadow: 0 0 12px rgba(255, 0, 0, 0.5);
+    background-color: #fffafa;
+}
+
+.button-row {
+    text-align: center;
+    margin-top: 20px;
+}
+
+button {
+    padding: 12px 25px;
+    background: #e60000;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+button:hover {
+    background: #b30000;
+    transform: scale(1.05);
+}
+
+/* ================= DASHBOARD ================= */
+
+.dashboard {
+    width: 75%;
+    margin: auto;
+    background: white;
+    padding: 25px;
+    margin-top: 30px;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.header-section {
+    background: #ffe6e6;
+    padding: 15px;
+    margin-bottom: 25px;
+    border-radius: 10px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+/* Screening smaller width */
+.medical-section {
+    width: 60%;
+    margin: auto;
+    margin-bottom: 25px;
+}
+
+.eligibility {
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.donate-btn {
+    text-align: center;
+}

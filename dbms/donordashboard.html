@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Donor Dashboard</title>
+    <link rel="stylesheet" href="donorstyle.css">
+</head>
+<body>
+
+<div class="dashboard">
+
+    <!-- TOP 30% PERSONAL DETAILS -->
+    <div class="header-section">
+        <h3>Donor Details</h3>
+        <table>
+            <tr><th>Name</th><td id="dname"></td></tr>
+            <tr><th>DOB</th><td id="ddob"></td></tr>
+            <tr><th>Phone</th><td id="dphone"></td></tr>
+            <tr><th>Address</th><td id="daddress"></td></tr>
+            <tr><th>City</th><td id="dcity"></td></tr>
+            <tr><th>Blood Group</th><td id="dblood"></td></tr>
+        </table>
+    </div>
+
+    <!-- SCREENING DETAILS -->
+    <div class="medical-section">
+        <h3>Screening Details</h3>
+        <table>
+            <tr><th>Platelet Count</th><td id="dplatelet"></td></tr>
+            <tr><th>Hemoglobin</th><td id="dhemo"></td></tr>
+            <tr><th>Weight</th><td id="dweight"></td></tr>
+            <tr><th>Blood Pressure</th><td id="dbp"></td></tr>
+            <tr><th>Pulse Rate</th><td id="dpulse"></td></tr>
+            <tr><th>Last Donation</th><td id="dlast"></td></tr>
+        </table>
+    </div>
+
+    <!-- ELIGIBILITY -->
+    <div class="eligibility">
+        <h3>Eligibility Status</h3>
+        <p id="status"></p>
+    </div>
+
+    <!-- DONATE BUTTON -->
+    <div class="donate-btn">
+        <button onclick="donate()">Donate Now</button>
+    </div>
+
+</div>
+
+<script src="donorscript.js"></script>
+</body>
+</html>

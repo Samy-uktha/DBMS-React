@@ -1,13 +1,46 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dbms</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Donor Dashboard</title>
+    <link rel="stylesheet" href="donorstyle.css">
+</head>
+<body>
+
+<div class="main-container">
+    <div class="dashboard-box">
+
+        <!-- HEADER -->
+        <div class="dashboard-header">
+            <h2 id="d_name"></h2>
+            <p><strong>Blood Group:</strong> <span id="d_blood"></span></p>
+            
+            <!-- DONATE NOW BUTTON -->
+            <button class="donate-btn">Donate Now</button>
+        </div>
+
+        <!-- BODY -->
+        <div class="dashboard-body">
+            <p><strong>Date of Birth:</strong> <span id="d_dob"></span></p>
+            <p><strong>Gender:</strong> <span id="d_gender"></span></p>
+            <p><strong>Email:</strong> <span id="d_email"></span></p>
+            <p><strong>Phone:</strong> <span id="d_phone"></span></p>
+            <p><strong>Address:</strong> <span id="d_address"></span></p>
+            <p><strong>City:</strong> <span id="d_city"></span></p>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="dashboard-footer">
+            <h3>Medical Details</h3>
+            <p><strong>Hemoglobin:</strong> 13.5 g/dL</p>
+            <p><strong>Platelet Count:</strong> 250,000 /µL</p>
+            <p><strong>Last Donation Date:</strong> 12-01-2026</p>
+            <p><strong>Blood Pressure:</strong> 120/80 mmHg</p>
+            <p><strong>Status:</strong> Eligible</p>
+        </div>
+
+    </div>
+</div>
+
+<script src="donorscript.js"></script>
+</body>
 </html>
