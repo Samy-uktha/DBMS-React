@@ -1,127 +1,108 @@
-const pool = require("../db");
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
+const pool = require('../db');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
-exports.register = async (req, res) => {
+const makeToken = (user) =>
+  jwt.sign(
+    { id: user.id, email: user.email, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+
+// POST /api/auth/login
+const login = async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password)
+    return res.status(400).json({ error: 'Email and password required' });
+
   try {
-    const {
-      name,
-      email,
-      password,
-      phone,
-      address_line,
-      city,
-      state,
-      pincode,
-      role,
-      blood_group,
-      date_of_birth,
-      hospital_name,
-      license_number
-    } = req.body;
-
-    // 1️⃣ Check if user already exists
-    const existingUser = await pool.query(
-      "SELECT * FROM users WHERE email = $1",
-      [email]
-    );
-
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({ message: "Email already registered" });
-    }
-
-    // 2️⃣ Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // 3️⃣ Insert into users table
-    const newUser = await pool.query(
-      `INSERT INTO users 
-      (name, email, password_hash, phone, address_line, city, state, pincode, role)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-      RETURNING *`,
-      [name, email, hashedPassword, phone, address_line, city, state, pincode, role]
-    );
-
-    const userId = newUser.rows[0].id;
-
-    // 4️⃣ If DONOR → insert into donors table
-    if (role === "DONOR") {
-        if (!blood_group || !date_of_birth) {
-          return res.status(400).json({
-            message: "Blood group and date of birth are required for donors"
-        });
-      }
-      await pool.query(
-        `INSERT INTO donors (user_id, blood_group, date_of_birth)
-         VALUES ($1,$2,$3)`,
-        [userId, blood_group, date_of_birth]
-      );
-    }
-
-    // 5️⃣ If HOSPITAL → insert into hospitals table
-    if (role === "HOSPITAL") {
-      if (!hospital_name) {
-    return res.status(400).json({
-      message: "Hospital name is required"
-    });
-  }
-      await pool.query(
-        `INSERT INTO hospitals (user_id, hospital_name, license_number)
-         VALUES ($1,$2,$3)`,
-        [userId, hospital_name, license_number]
-      );
-    }
-
-    res.status(201).json({ message: "User registered successfully" });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-
-exports.login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // 1️⃣ Find user
     const userResult = await pool.query(
-      "SELECT * FROM users WHERE email = $1",
-      [email]
+      'SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim()]
     );
-
-    if (userResult.rows.length === 0) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
+    if (userResult.rows.length === 0)
+      return res.status(404).json({ error: 'USER_NOT_FOUND' });
 
     const user = userResult.rows[0];
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid)
+      return res.status(401).json({ error: 'INVALID_PASSWORD' });
 
-    // 2️⃣ Compare password
-    const validPassword = await bcrypt.compare(password, user.password_hash);
+    const token = makeToken(user);
 
-    if (!validPassword) {
-      return res.status(400).json({ message: "Invalid credentials" });
+    // Determine redirect based on role + what data exists
+    let redirectTo = 'ROLE_SELECT'; // fallback (shouldn't happen for existing users)
+    let extra = {};
+
+    if (user.role === 'DONOR') {
+      const donorResult = await pool.query(
+        'SELECT * FROM donors WHERE user_id = $1', [user.id]
+      );
+      if (donorResult.rows.length === 0) {
+        redirectTo = 'DONOR_FORM';
+      } else {
+        extra.donor = donorResult.rows[0];
+        const screenResult = await pool.query(
+          'SELECT * FROM donor_screening WHERE donor_id = $1 ORDER BY screening_date DESC LIMIT 1',
+          [donorResult.rows[0].id]
+        );
+        redirectTo = screenResult.rows.length > 0 ? 'DONOR_DASHBOARD' : 'SCREENING_FORM';
+        if (screenResult.rows.length > 0) extra.screening = screenResult.rows[0];
+      }
+    } else if (user.role === 'HOSPITAL') {
+      const hospResult = await pool.query(
+        'SELECT * FROM hospitals WHERE user_id = $1', [user.id]
+      );
+      redirectTo = hospResult.rows.length > 0 ? 'HOSPITAL_DASHBOARD' : 'HOSPITAL_FORM';
+      if (hospResult.rows.length > 0) extra.hospital = hospResult.rows[0];
     }
-
-    // 3️⃣ Generate JWT
-    const token = jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
 
     res.json({
       token,
+      redirectTo,
       user: {
-        id: user.id,
-        name: user.name,
-        role: user.role
-      }
+        id: user.id, name: user.name, email: user.email,
+        role: user.role, city: user.city,
+      },
+      ...extra,
     });
-
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ error: 'Server error' });
   }
 };
+
+// POST /api/auth/register
+const register = async (req, res) => {
+  const { name, email, password, phone, address_line, city, state, pincode, role } = req.body;
+  if (!name || !email || !password || !city || !state || !pincode || !role)
+    return res.status(400).json({ error: 'All required fields must be filled' });
+  if (!['DONOR', 'HOSPITAL'].includes(role))
+    return res.status(400).json({ error: 'Role must be DONOR or HOSPITAL' });
+
+  try {
+    const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
+    if (exists.rows.length > 0)
+      return res.status(409).json({ error: 'EMAIL_EXISTS' });
+
+    const hash = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      `INSERT INTO users (name, email, password_hash, phone, address_line, city, state, pincode, role)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [name, email.toLowerCase(), hash, phone || null, address_line || null, city, state, pincode, role]
+    );
+
+    const user = result.rows[0];
+    const token = makeToken(user);
+
+    res.status(201).json({
+      token,
+      redirectTo: role === 'DONOR' ? 'DONOR_FORM' : 'HOSPITAL_FORM',
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, city: user.city },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+module.exports = { login, register };
