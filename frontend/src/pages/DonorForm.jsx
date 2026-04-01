@@ -2,15 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const BLOOD_GROUPS = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export default function DonorForm() {
   const { auth } = useAuth();
   const navigate  = useNavigate();
-  const [form, setForm] = useState({
-    blood_group: '', date_of_birth: '', weight: '', last_donation_date: '',
-  });
-  const [error, setError]   = useState('');
+  const [form, setForm] = useState({ blood_group: '', date_of_birth: '' });
+  const [error,   setError]   = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -20,18 +18,12 @@ export default function DonorForm() {
     try {
       const res = await fetch('http://localhost:5000/api/donors', {
         method:  'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization:  `Bearer ${auth.token}`,
-        },
-        body: JSON.stringify(form),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
+        body:    JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Failed to save. Try again.');
-        return;
-      }
-      navigate('/screening');
+      if (!res.ok) { setError(data.error || 'Failed to save. Try again.'); return; }
+      navigate('/screening?from=new');
     } catch {
       setError('Server error.');
     } finally {
@@ -41,6 +33,7 @@ export default function DonorForm() {
 
   return (
     <div className="min-h-screen bg-red-50 flex flex-col items-center justify-center px-4 py-10">
+
       {/* Progress steps */}
       <div className="flex items-center gap-2 mb-8">
         {['Account', 'Donor Info', 'Screening', 'Dashboard'].map((step, i) => (
@@ -67,7 +60,7 @@ export default function DonorForm() {
           </div>
           <div>
             <h2 className="text-xl font-bold text-gray-800">Donor Information</h2>
-            <p className="text-xs text-gray-500">Tell us about yourself as a donor</p>
+            <p className="text-xs text-gray-500">Basic details — weight and donation history in next step</p>
           </div>
         </div>
 
@@ -88,30 +81,6 @@ export default function DonorForm() {
             <input type="date" required
               value={form.date_of_birth}
               onChange={e => setForm({ ...form, date_of_birth: e.target.value })}
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50
-                         focus:outline-none focus:ring-2 focus:ring-red-400"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Weight (kg) <span className="text-gray-400 text-xs">— min 45 kg to donate</span>
-            </label>
-            <input type="number" min="1" step="0.1" placeholder="e.g. 65.5"
-              value={form.weight}
-              onChange={e => setForm({ ...form, weight: e.target.value })}
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50
-                         focus:outline-none focus:ring-2 focus:ring-red-400"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Last Donation Date <span className="text-gray-400 text-xs">(optional)</span>
-            </label>
-            <input type="date"
-              value={form.last_donation_date}
-              onChange={e => setForm({ ...form, last_donation_date: e.target.value })}
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50
                          focus:outline-none focus:ring-2 focus:ring-red-400"
             />

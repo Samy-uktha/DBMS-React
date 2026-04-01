@@ -1,6 +1,6 @@
 const pool = require('../db');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+const jwt    = require('jsonwebtoken');
 
 const makeToken = (user) =>
   jwt.sign(
@@ -22,15 +22,13 @@ const login = async (req, res) => {
     if (userResult.rows.length === 0)
       return res.status(404).json({ error: 'USER_NOT_FOUND' });
 
-    const user = userResult.rows[0];
+    const user  = userResult.rows[0];
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid)
       return res.status(401).json({ error: 'INVALID_PASSWORD' });
 
     const token = makeToken(user);
-
-    // Determine redirect based on role + what data exists
-    let redirectTo = 'ROLE_SELECT'; // fallback (shouldn't happen for existing users)
+    let redirectTo = 'ROLE_SELECT';
     let extra = {};
 
     if (user.role === 'DONOR') {
@@ -38,15 +36,12 @@ const login = async (req, res) => {
         'SELECT * FROM donors WHERE user_id = $1', [user.id]
       );
       if (donorResult.rows.length === 0) {
+        // No donor profile yet
         redirectTo = 'DONOR_FORM';
       } else {
         extra.donor = donorResult.rows[0];
-        const screenResult = await pool.query(
-          'SELECT * FROM donor_screening WHERE donor_id = $1 ORDER BY screening_date DESC LIMIT 1',
-          [donorResult.rows[0].id]
-        );
-        redirectTo = screenResult.rows.length > 0 ? 'DONOR_DASHBOARD' : 'SCREENING_FORM';
-        if (screenResult.rows.length > 0) extra.screening = screenResult.rows[0];
+        // ✅ Always go to dashboard — screening check is handled inside the dashboard
+        redirectTo = 'DONOR_DASHBOARD';
       }
     } else if (user.role === 'HOSPITAL') {
       const hospResult = await pool.query(
@@ -60,8 +55,12 @@ const login = async (req, res) => {
       token,
       redirectTo,
       user: {
-        id: user.id, name: user.name, email: user.email,
-        role: user.role, city: user.city,
+        id:    user.id,
+        name:  user.name,
+        email: user.email,
+        role:  user.role,
+        city:  user.city,
+        state: user.state,
       },
       ...extra,
     });
@@ -80,24 +79,33 @@ const register = async (req, res) => {
     return res.status(400).json({ error: 'Role must be DONOR or HOSPITAL' });
 
   try {
-    const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
+    const exists = await pool.query(
+      'SELECT id FROM users WHERE email = $1', [email.toLowerCase()]
+    );
     if (exists.rows.length > 0)
       return res.status(409).json({ error: 'EMAIL_EXISTS' });
 
-    const hash = await bcrypt.hash(password, 10);
+    const hash   = await bcrypt.hash(password, 10);
     const result = await pool.query(
       `INSERT INTO users (name, email, password_hash, phone, address_line, city, state, pincode, role)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
       [name, email.toLowerCase(), hash, phone || null, address_line || null, city, state, pincode, role]
     );
 
-    const user = result.rows[0];
+    const user  = result.rows[0];
     const token = makeToken(user);
 
     res.status(201).json({
       token,
       redirectTo: role === 'DONOR' ? 'DONOR_FORM' : 'HOSPITAL_FORM',
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, city: user.city },
+      user: {
+        id:    user.id,
+        name:  user.name,
+        email: user.email,
+        role:  user.role,
+        city:  user.city,
+        state: user.state,
+      },
     });
   } catch (err) {
     console.error(err);

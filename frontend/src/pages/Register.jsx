@@ -2,9 +2,86 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+const CITY_STATE_MAP = {
+  'Alappuzha':         'Kerala',
+  'Ahmedabad':         'Gujarat',
+  'Agra':              'Uttar Pradesh',
+  'Allahabad':         'Uttar Pradesh',
+  'Amritsar':          'Punjab',
+  'Aurangabad':        'Maharashtra',
+  'Ballari':           'Karnataka',
+  'Belagavi':          'Karnataka',
+  'Bengaluru':         'Karnataka',
+  'Bhopal':            'Madhya Pradesh',
+  'Chandigarh':        'Punjab',
+  'Chennai':           'Tamil Nadu',
+  'Coimbatore':        'Tamil Nadu',
+  'Davanagere':        'Karnataka',
+  'Delhi':             'Delhi',
+  'Dharwad':           'Karnataka',
+  'Dindigul':          'Tamil Nadu',
+  'Durgapur':          'West Bengal',
+  'Ernakulam':         'Kerala',
+  'Erode':             'Tamil Nadu',
+  'Gaya':              'Bihar',
+  'Guntur':            'Andhra Pradesh',
+  'Howrah':            'West Bengal',
+  'Hubli':             'Karnataka',
+  'Hyderabad':         'Telangana',
+  'Idukki':            'Kerala',
+  'Indore':            'Madhya Pradesh',
+  'Jabalpur':          'Madhya Pradesh',
+  'Jaipur':            'Rajasthan',
+  'Jodhpur':           'Rajasthan',
+  'Kanpur':            'Uttar Pradesh',
+  'Kannur':            'Kerala',
+  'Kasaragod':         'Kerala',
+  'Kochi':             'Kerala',
+  'Kolkata':           'West Bengal',
+  'Kollam':            'Kerala',
+  'Kota':              'Rajasthan',
+  'Kozhikode':         'Kerala',
+  'Kottayam':          'Kerala',
+  'Kurnool':           'Andhra Pradesh',
+  'Lucknow':           'Uttar Pradesh',
+  'Ludhiana':          'Punjab',
+  'Madurai':           'Tamil Nadu',
+  'Malappuram':        'Kerala',
+  'Mangaluru':         'Karnataka',
+  'Mumbai':            'Maharashtra',
+  'Mysuru':            'Karnataka',
+  'Nagpur':            'Maharashtra',
+  'Nashik':            'Maharashtra',
+  'Nellore':           'Andhra Pradesh',
+  'New Delhi':         'Delhi',
+  'Nizamabad':         'Telangana',
+  'Palakkad':          'Kerala',
+  'Pathanamthitta':    'Kerala',
+  'Patna':             'Bihar',
+  'Pune':              'Maharashtra',
+  'Rajkot':            'Gujarat',
+  'Salem':             'Tamil Nadu',
+  'Surat':             'Gujarat',
+  'Thiruvananthapuram':'Kerala',
+  'Thoothukudi':       'Tamil Nadu',
+  'Thrissur':          'Kerala',
+  'Tiruchirappalli':   'Tamil Nadu',
+  'Tirunelveli':       'Tamil Nadu',
+  'Udaipur':           'Rajasthan',
+  'Vadodara':          'Gujarat',
+  'Varanasi':          'Uttar Pradesh',
+  'Vellore':           'Tamil Nadu',
+  'Vijayawada':        'Andhra Pradesh',
+  'Visakhapatnam':     'Andhra Pradesh',
+  'Warangal':          'Telangana',
+  'Wayanad':           'Kerala',
+};
+
+const CITIES = Object.keys(CITY_STATE_MAP).sort();
+
 export default function Register() {
   const [searchParams] = useSearchParams();
-  const role = searchParams.get('role') || 'DONOR'; // DONOR or HOSPITAL
+  const role     = searchParams.get('role') || 'DONOR';
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -12,14 +89,66 @@ export default function Register() {
     name: '', email: '', password: '', phone: '',
     address_line: '', city: '', state: '', pincode: '',
   });
-  const [error, setError]   = useState('');
+  const [errors,  setErrors]  = useState({});
+  const [apiError, setApiError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
+  // ── Validation rules ──────────────────────────────────────────
+  const validate = () => {
+    const e = {};
+    if (!form.name.trim())
+      e.name = 'Full name is required.';
+
+    if (!form.email.trim())
+      e.email = 'Email is required.';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+      e.email = 'Enter a valid email address (e.g. you@gmail.com).';
+
+    if (!form.password)
+      e.password = 'Password is required.';
+    else if (form.password.length < 6)
+      e.password = 'Password must be at least 6 characters.';
+
+    if (form.phone && !/^\d{10}$/.test(form.phone))
+      e.phone = 'Phone must be exactly 10 digits.';
+
+    if (!form.city)
+      e.city = 'Please select a city.';
+
+    if (!form.state.trim())
+      e.state = 'State is required.';
+
+    if (!form.pincode.trim())
+      e.pincode = 'Pincode is required.';
+    else if (!/^\d{6}$/.test(form.pincode))
+      e.pincode = 'Pincode must be 6 digits.';
+
+    return e;
+  };
+
+  const handleChange = e => {
+    const { name, value } = e.target;
+    // Clear individual field error on change
+    setErrors(prev => ({ ...prev, [name]: '' }));
+    if (name === 'city') {
+      setForm(prev => ({
+        ...prev,
+        city:  value,
+        state: CITY_STATE_MAP[value] || '',
+      }));
+    } else {
+      setForm(prev => ({ ...prev, [name]: value }));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setApiError('');
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
     setLoading(true);
     try {
       const res  = await fetch('http://localhost:5000/api/auth/register', {
@@ -29,31 +158,25 @@ export default function Register() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error === 'EMAIL_EXISTS' ? 'Email already registered.' : data.error || 'Registration failed.');
+        setApiError(data.error === 'EMAIL_EXISTS' ? 'Email already registered.' : data.error || 'Registration failed.');
         return;
       }
       login(data.token, data.user);
       navigate(role === 'DONOR' ? '/donor-form' : '/hospital-form');
     } catch {
-      setError('Server unreachable.');
+      setApiError('Server unreachable. Make sure the backend is running.');
     } finally {
       setLoading(false);
     }
   };
 
   const roleLabel = role === 'DONOR' ? 'Donor' : 'Hospital';
-  const roleColor = 'red';
 
-  const fields = [
-    { name: 'name',         label: 'Full Name',   type: 'text',     placeholder: role === 'DONOR' ? 'John Doe' : 'City General Hospital', required: true },
-    { name: 'email',        label: 'Email',       type: 'email',    placeholder: 'you@example.com',   required: true },
-    { name: 'password',     label: 'Password',    type: 'password', placeholder: '••••••••',           required: true },
-    { name: 'phone',        label: 'Phone',       type: 'tel',      placeholder: '9876543210',         required: false },
-    { name: 'address_line', label: 'Address',     type: 'text',     placeholder: '123 Main Street',   required: false },
-    { name: 'city',         label: 'City',        type: 'text',     placeholder: 'Palakkad',           required: true },
-    { name: 'state',        label: 'State',       type: 'text',     placeholder: 'Kerala',             required: true },
-    { name: 'pincode',      label: 'Pincode',     type: 'text',     placeholder: '678001',             required: true },
-  ];
+  // Helper for field error display
+  const FieldError = ({ field }) =>
+    errors[field] ? (
+      <p className="text-red-500 text-xs mt-1">{errors[field]}</p>
+    ) : null;
 
   return (
     <div className="min-h-screen bg-red-50 flex flex-col items-center justify-center px-4 py-10">
@@ -82,34 +205,131 @@ export default function Register() {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+
+          {/* Full Name + Email */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {fields.map(f => (
-              <div key={f.name} className={f.name === 'address_line' ? 'sm:col-span-2' : ''}>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {f.label}
-                  {!f.required && <span className="text-gray-400 text-xs ml-1">(optional)</span>}
-                </label>
-                <input
-                  name={f.name} type={f.type} placeholder={f.placeholder}
-                  value={form[f.name]} onChange={handleChange}
-                  required={f.required}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50
-                             focus:outline-none focus:ring-2 focus:ring-red-400"
-                />
-              </div>
-            ))}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <input
+                name="name" type="text"
+                placeholder={role === 'DONOR' ? 'John Doe' : 'City General Hospital'}
+                value={form.name} onChange={handleChange}
+                className={`w-full border rounded-xl px-4 py-2.5 text-sm bg-gray-50
+                            focus:outline-none focus:ring-2 focus:ring-red-400
+                            ${errors.name ? 'border-red-400' : 'border-gray-200'}`}
+              />
+              <FieldError field="name" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                name="email" type="email" placeholder="you@gmail.com"
+                value={form.email} onChange={handleChange}
+                className={`w-full border rounded-xl px-4 py-2.5 text-sm bg-gray-50
+                            focus:outline-none focus:ring-2 focus:ring-red-400
+                            ${errors.email ? 'border-red-400' : 'border-gray-200'}`}
+              />
+              <FieldError field="email" />
+            </div>
           </div>
 
-          {error && (
-            <p className="text-red-500 text-sm text-center bg-red-50 border border-red-100 rounded-lg py-2 px-3">
-              {error}
+          {/* Password + Phone */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input
+                name="password" type="password" placeholder="Min. 6 characters"
+                value={form.password} onChange={handleChange}
+                className={`w-full border rounded-xl px-4 py-2.5 text-sm bg-gray-50
+                            focus:outline-none focus:ring-2 focus:ring-red-400
+                            ${errors.password ? 'border-red-400' : 'border-gray-200'}`}
+              />
+              <FieldError field="password" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Phone <span className="text-gray-400 text-xs">(optional)</span>
+              </label>
+              <input
+                name="phone" type="tel" placeholder="10 digit number"
+                value={form.phone} onChange={handleChange}
+                maxLength={10}
+                className={`w-full border rounded-xl px-4 py-2.5 text-sm bg-gray-50
+                            focus:outline-none focus:ring-2 focus:ring-red-400
+                            ${errors.phone ? 'border-red-400' : 'border-gray-200'}`}
+              />
+              <FieldError field="phone" />
+            </div>
+          </div>
+
+          {/* Address */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Address <span className="text-gray-400 text-xs">(optional)</span>
+            </label>
+            <input
+              name="address_line" type="text" placeholder="123 Main Street"
+              value={form.address_line} onChange={handleChange}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50
+                         focus:outline-none focus:ring-2 focus:ring-red-400"
+            />
+          </div>
+
+          {/* City + State */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+              <select
+                name="city" value={form.city} onChange={handleChange}
+                className={`w-full border rounded-xl px-4 py-2.5 text-sm bg-gray-50
+                            focus:outline-none focus:ring-2 focus:ring-red-400
+                            ${errors.city ? 'border-red-400' : 'border-gray-200'}`}
+              >
+                <option value="">Select city</option>
+                {CITIES.map(city => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+              </select>
+              <FieldError field="city" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+              <input
+                name="state" type="text" placeholder="Auto-filled"
+                value={form.state} onChange={handleChange}
+                readOnly={!!CITY_STATE_MAP[form.city]}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50
+                           focus:outline-none focus:ring-2 focus:ring-red-400 cursor-not-allowed"
+              />
+              <FieldError field="state" />
+            </div>
+          </div>
+
+          {/* Pincode */}
+          <div className="sm:w-1/2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
+            <input
+              name="pincode" type="text" placeholder="6 digit pincode"
+              value={form.pincode} onChange={handleChange}
+              maxLength={6}
+              className={`w-full border rounded-xl px-4 py-2.5 text-sm bg-gray-50
+                          focus:outline-none focus:ring-2 focus:ring-red-400
+                          ${errors.pincode ? 'border-red-400' : 'border-gray-200'}`}
+            />
+            <FieldError field="pincode" />
+          </div>
+
+          {apiError && (
+            <p className="text-red-500 text-sm text-center bg-red-50 border border-red-100
+                          rounded-lg py-2 px-3">
+              {apiError}
             </p>
           )}
 
           <button type="submit" disabled={loading}
-            className="w-full bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold
-                       py-3 rounded-xl transition-colors disabled:opacity-60 mt-1">
+            className="w-full bg-red-600 hover:bg-red-700 active:bg-red-800 text-white
+                       font-semibold py-3 rounded-xl transition-colors disabled:opacity-60">
             {loading ? 'Creating account...' : `Create ${roleLabel} Account →`}
           </button>
         </form>
