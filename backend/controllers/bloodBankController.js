@@ -1,14 +1,24 @@
 const pool = require('../db');
 
-// GET /api/blood-banks?city=Palakkad
-const getByCity = async (req, res) => {
-  const { city } = req.query;
-  if (!city) return res.status(400).json({ error: 'city query param required' });
+// GET /api/blood-banks/nearby
+const getNearby = async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM blood_banks WHERE LOWER(city) = LOWER($1)',
-      [city]
+    // Get donor_id from the logged-in user
+    const donorResult = await pool.query(
+      'SELECT id FROM donors WHERE user_id = $1',
+      [req.user.id]
     );
+
+    if (donorResult.rows.length === 0)
+      return res.status(404).json({ error: 'Donor profile not found' });
+
+    const donorId = donorResult.rows[0].id;
+
+    const result = await pool.query(
+      'SELECT * FROM get_nearby_blood_banks($1)',
+      [donorId]
+    );
+
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -16,23 +26,4 @@ const getByCity = async (req, res) => {
   }
 };
 
-// GET /api/blood-banks/state?state=Kerala&excludeCity=Palakkad
-const getByState = async (req, res) => {
-  const { state, excludeCity } = req.query;
-  if (!state) return res.status(400).json({ error: 'state query param required' });
-  try {
-    const result = await pool.query(
-      `SELECT * FROM blood_banks
-       WHERE LOWER(state) = LOWER($1)
-         AND LOWER(city) != LOWER($2)
-       ORDER BY city`,
-      [state, excludeCity || '']
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-};
-
-module.exports = { getByCity, getByState };
+module.exports = { getNearby };

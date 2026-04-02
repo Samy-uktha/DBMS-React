@@ -8,8 +8,7 @@ export default function DonorDashboard() {
 
   const [profile,     setProfile]     = useState(null);
   const [screening,   setScreening]   = useState([]);
-  const [cityBanks,   setCityBanks]   = useState([]);
-  const [stateBanks,  setStateBanks]  = useState([]);
+  const [nearbyBanks, setNearbyBanks] = useState([]);
   const [eligibility, setEligibility] = useState(null);
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState('');
@@ -34,19 +33,12 @@ export default function DonorDashboard() {
       setScreening(Array.isArray(screeningData) ? screeningData : []);
       setEligibility(eligData);
 
-      console.log('Eligibility:', eligData);
-      console.log('User city:', auth.user.city);
+      const nearbyData = await fetch(
+        'http://localhost:5000/api/blood-banks/nearby',
+        { headers: H }
+      ).then(r => r.json());
 
-      const city  = auth.user.city;
-      const state = auth.user.state;
-
-      const [cityData, stateData] = await Promise.all([
-        fetch(`http://localhost:5000/api/blood-banks?city=${encodeURIComponent(city)}`, { headers: H }).then(r => r.json()),
-        fetch(`http://localhost:5000/api/blood-banks/state?state=${encodeURIComponent(state)}&excludeCity=${encodeURIComponent(city)}`, { headers: H }).then(r => r.json()),
-      ]);
-
-      setCityBanks(Array.isArray(cityData) ? cityData : []);
-      setStateBanks(Array.isArray(stateData) ? stateData : []);
+      setNearbyBanks(Array.isArray(nearbyData) ? nearbyData : []);
     } catch {
       setError('Failed to load data.');
     } finally {
@@ -160,10 +152,9 @@ export default function DonorDashboard() {
             </div>
           )}
 
-          {/* NEEDS SCREENING — disabled donate + fill screening button */}
+          {/* NEEDS SCREENING */}
           {needsScreening && !donated && (
             <div className="space-y-2">
-              {/* Disabled donate button */}
               <div className="flex items-end gap-2 opacity-50 cursor-not-allowed">
                 <div className="flex flex-col">
                   <label className="text-xs text-gray-400 mb-1">Units</label>
@@ -176,7 +167,6 @@ export default function DonorDashboard() {
                   🩸 Donate Now
                 </div>
               </div>
-              {/* Prompt to fill screening */}
               <button
                 onClick={() => navigate('/screening')}
                 className="w-full py-2 rounded-xl text-xs font-semibold text-center
@@ -321,7 +311,7 @@ export default function DonorDashboard() {
             { label: 'Blood Group',  value: profile?.blood_group || '—',                       icon: '🩸' },
             { label: 'Your City',    value: auth?.user?.city     || '—',                       icon: '📍' },
             { label: 'Hemoglobin',   value: latest ? `${latest.hemoglobin_level} g/dL` : '—', icon: '💉' },
-            { label: 'Nearby Banks', value: cityBanks.length + stateBanks.length,              icon: '🏥' },
+            { label: 'Blood Pressure', value: latest?.blood_pressure || '—', icon: '🫀' },
           ].map(card => (
             <div key={card.label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col gap-1">
               <span className="text-2xl">{card.icon}</span>
@@ -337,32 +327,17 @@ export default function DonorDashboard() {
           </div>
         )}
 
-        {/* ── Blood Banks in Your City ── */}
+        {/* ── Nearby Blood Banks ── */}
         <section>
-          <h2 className="text-lg font-bold text-gray-800 mb-0.5">🏥 Blood Banks in {auth?.user?.city}</h2>
-          <p className="text-xs text-gray-400 mb-3">Closest to you</p>
-          {cityBanks.length === 0 ? (
+          <h2 className="text-lg font-bold text-gray-800 mb-0.5">🏥 Nearby Blood Banks</h2>
+          <p className="text-xs text-gray-400 mb-3">Your city first, then others in {auth?.user?.state}</p>
+          {nearbyBanks.length === 0 ? (
             <div className="bg-white rounded-2xl p-6 text-center border border-dashed border-gray-200">
-              <p className="text-gray-400 text-sm">No blood banks registered in {auth?.user?.city}.</p>
+              <p className="text-gray-400 text-sm">No blood banks found near you.</p>
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 gap-4">
-              {cityBanks.map(bb => <BloodBankCard key={bb.id} bb={bb} />)}
-            </div>
-          )}
-        </section>
-
-        {/* ── Blood Banks in Your State ── */}
-        <section>
-          <h2 className="text-lg font-bold text-gray-800 mb-0.5">🗺️ Other Blood Banks in {auth?.user?.state}</h2>
-          <p className="text-xs text-gray-400 mb-3">Other cities in your state</p>
-          {stateBanks.length === 0 ? (
-            <div className="bg-white rounded-2xl p-6 text-center border border-dashed border-gray-200">
-              <p className="text-gray-400 text-sm">No other blood banks found in {auth?.user?.state}.</p>
-            </div>
-          ) : (
-            <div className="grid sm:grid-cols-2 gap-4">
-              {stateBanks.map(bb => <BloodBankCard key={bb.id} bb={bb} />)}
+              {nearbyBanks.map(bb => <BloodBankCard key={bb.id} bb={bb} />)}
             </div>
           )}
         </section>
@@ -370,7 +345,6 @@ export default function DonorDashboard() {
         {/* ── Screening History ── */}
         {screening.length > 0 && (
           <section>
-            {/* Header row with expired badge + Fill Now button */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 <h2 className="text-lg font-bold text-gray-800">📋 Screening History</h2>
@@ -396,7 +370,6 @@ export default function DonorDashboard() {
                 )}
               </div>
 
-              {/* Fill Now button — shown when screening is expired, failed, or missing */}
               {(status === 'SCREENING_EXPIRED' || status === 'SCREENING_FAILED' || status === 'NO_SCREENING') && (
                 <button
                   onClick={() => navigate('/screening')}

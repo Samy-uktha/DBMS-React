@@ -1,8 +1,7 @@
-const router  = require('express').Router();
-const auth    = require('../middleware/auth');
-const { getByCity, getByState } = require('../controllers/bloodBankController');
+const router = require('express').Router();
+const auth   = require('../middleware/auth');
+const { getNearby } = require('../controllers/bloodBankController');
 
-router.get('/',      auth, getByCity);
-router.get('/state', auth, getByState);
+router.get('/nearby', auth, getNearby);
 
 module.exports = router;

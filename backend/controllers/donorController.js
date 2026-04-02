@@ -2,7 +2,7 @@ const pool = require('../db');
 
 const createDonor = async (req, res) => {
   const userId = req.user.id;
-  const { blood_group, date_of_birth } = req.body; // weight & last_donation_date removed
+  const { blood_group, date_of_birth } = req.body;
   if (!blood_group || !date_of_birth)
     return res.status(400).json({ error: 'blood_group and date_of_birth required' });
   try {
@@ -49,40 +49,62 @@ const donate = async (req, res) => {
   const units = units_collected !== undefined ? parseInt(units_collected) : 3;
   if (isNaN(units) || units < 1 || units > 5)
     return res.status(400).json({ error: 'units_collected must be between 1 and 5' });
+
+  const client = await pool.connect();
   try {
-    const donorResult = await pool.query(
+    await client.query('BEGIN');
+
+    // 1. Get donor
+    const donorResult = await client.query(
       'SELECT id FROM donors WHERE user_id = $1', [userId]
     );
-    if (donorResult.rows.length === 0)
+    if (donorResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Donor not found' });
+    }
     const donorId = donorResult.rows[0].id;
 
-    const screenResult = await pool.query(
+    // 2. Check passed screening
+    const screenResult = await client.query(
       `SELECT id FROM donor_screening
        WHERE donor_id = $1 AND status = 'PASSED'
        ORDER BY screening_date DESC LIMIT 1`,
       [donorId]
     );
-    if (screenResult.rows.length === 0)
+    if (screenResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'No passed screening found. Complete screening before donating.' });
+    }
     const screeningId = screenResult.rows[0].id;
 
-    const result = await pool.query(
+    // 3. Insert donation
+    const donationResult = await client.query(
       `INSERT INTO donations (donor_id, blood_bank_id, screening_id, donation_date, units_collected)
        VALUES ($1, $2, $3, CURRENT_DATE, $4) RETURNING *`,
       [donorId, blood_bank_id, screeningId, units]
     );
-    res.status(201).json(result.rows[0]);
+    const donation = donationResult.rows[0];
+
+    // 4. Split into blood_units via Postgres function
+    await client.query(
+      'SELECT split_donation_into_units($1)',
+      [donation.id]
+    );
+
+    await client.query('COMMIT');
+    res.status(201).json(donation);
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error(err);
     res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
   }
 };
 
 const getEligibility = async (req, res) => {
   const userId = req.user.id;
   try {
-    // Get latest screening for this donor
     const screeningRes = await pool.query(
       `SELECT ds.*
        FROM donor_screening ds
@@ -93,14 +115,12 @@ const getEligibility = async (req, res) => {
       [userId]
     );
 
-    // No screening at all
     if (screeningRes.rows.length === 0) {
       return res.json({ eligibility_status: 'NO_SCREENING' });
     }
 
     const screening = screeningRes.rows[0];
 
-    // Check if screening is older than 2 months
     const screeningDate = new Date(screening.screening_date);
     const twoMonthsAgo = new Date();
     twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
@@ -111,7 +131,6 @@ const getEligibility = async (req, res) => {
       });
     }
 
-    // Screening failed criteria
     if (screening.status === 'FAILED') {
       return res.json({
         eligibility_status: 'SCREENING_FAILED',
@@ -119,7 +138,6 @@ const getEligibility = async (req, res) => {
       });
     }
 
-    // Check last donation date (now stored in donor_screening)
     if (screening.last_donation_date) {
       const lastDonation = new Date(screening.last_donation_date);
       const threeMonthsAgo = new Date();
@@ -133,7 +151,6 @@ const getEligibility = async (req, res) => {
       }
     }
 
-    // Also check donations table — if they donated via the app recently
     const donationRes = await pool.query(
       `SELECT donation_date FROM donations
        WHERE donor_id = (SELECT id FROM donors WHERE user_id = $1)
@@ -153,7 +170,6 @@ const getEligibility = async (req, res) => {
       }
     }
 
-    // All checks passed — eligible
     res.json({
       eligibility_status: 'ELIGIBLE',
       latest_screening_date: screening.screening_date,
