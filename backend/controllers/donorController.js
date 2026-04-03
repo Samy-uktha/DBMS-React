@@ -104,75 +104,67 @@ const donate = async (req, res) => {
 
 const getEligibility = async (req, res) => {
   const userId = req.user.id;
+
   try {
-    const screeningRes = await pool.query(
-      `SELECT ds.*
-       FROM donor_screening ds
-       JOIN donors d ON d.id = ds.donor_id
-       WHERE d.user_id = $1
-       ORDER BY ds.screening_date DESC
-       LIMIT 1`,
+    // 1. Get donor_id
+    const donorRes = await pool.query(
+      'SELECT id FROM donors WHERE user_id = $1',
       [userId]
     );
 
-    if (screeningRes.rows.length === 0) {
-      return res.json({ eligibility_status: 'NO_SCREENING' });
+    if (donorRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Donor not found' });
     }
 
-    const screening = screeningRes.rows[0];
+    const donorId = donorRes.rows[0].id;
 
-    const screeningDate = new Date(screening.screening_date);
-    const twoMonthsAgo = new Date();
-    twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
-    if (screeningDate < twoMonthsAgo) {
-      return res.json({
-        eligibility_status: 'SCREENING_EXPIRED',
-        latest_screening_date: screening.screening_date,
-      });
-    }
+    // 🔥 2. Call screening validity function
+    const result = await pool.query(
+      'SELECT * FROM check_screening_validity($1)',
+      [donorId]
+    );
 
-    if (screening.status === 'FAILED') {
+    const screeningData = result.rows[0];
+
+    // 🔥 3. Also get screening status (PASSED/FAILED)
+    const screeningRes = await pool.query(
+      `SELECT status, screening_date
+       FROM donor_screening
+       WHERE donor_id = $1
+       ORDER BY screening_date DESC
+       LIMIT 1`,
+      [donorId]
+    );
+      // after fetching screeningRes
+
+      if (screeningRes.rows.length === 0) {
+        return res.json({
+          eligibility_status: 'NO_SCREENING' // or RE_SCREEN_REQUIRED
+        });
+      }
+
+      const latest = screeningRes.rows[0];
+
+    // ❌ Screening failed
+    if (latest.status === 'FAILED') {
       return res.json({
         eligibility_status: 'SCREENING_FAILED',
-        latest_screening_date: screening.screening_date,
+        latest_screening_date: latest.screening_date
       });
     }
 
-    if (screening.last_donation_date) {
-      const lastDonation = new Date(screening.last_donation_date);
-      const threeMonthsAgo = new Date();
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-      if (lastDonation > threeMonthsAgo) {
-        return res.json({
-          eligibility_status: 'DONATION_TOO_RECENT',
-          last_donation_date: screening.last_donation_date,
-          latest_screening_date: screening.screening_date,
-        });
-      }
+    // ⚠️ Re-screen required
+    if (screeningData.screening_status === 'RE_SCREEN_REQUIRED') {
+      return res.json({
+        eligibility_status: 'SCREENING_EXPIRED',
+        latest_screening_date: screeningData.last_screening_date
+      });
     }
 
-    const donationRes = await pool.query(
-      `SELECT donation_date FROM donations
-       WHERE donor_id = (SELECT id FROM donors WHERE user_id = $1)
-       ORDER BY donation_date DESC LIMIT 1`,
-      [userId]
-    );
-    if (donationRes.rows.length > 0) {
-      const lastAppDonation = new Date(donationRes.rows[0].donation_date);
-      const threeMonthsAgo = new Date();
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-      if (lastAppDonation > threeMonthsAgo) {
-        return res.json({
-          eligibility_status: 'DONATION_TOO_RECENT',
-          last_donation_date: donationRes.rows[0].donation_date,
-          latest_screening_date: screening.screening_date,
-        });
-      }
-    }
-
+    // ✅ Eligible (screening-wise)
     res.json({
       eligibility_status: 'ELIGIBLE',
-      latest_screening_date: screening.screening_date,
+      latest_screening_date: screeningData.last_screening_date
     });
 
   } catch (err) {
