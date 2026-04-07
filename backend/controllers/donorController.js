@@ -128,7 +128,7 @@ const getEligibility = async (req, res) => {
 
     // 🔥 3. Also get screening status (PASSED/FAILED)
     const screeningRes = await pool.query(
-      `SELECT status, screening_date
+      `SELECT status, screening_date,remarks,last_donation_date
        FROM donor_screening
        WHERE donor_id = $1
        ORDER BY screening_date DESC
@@ -147,11 +147,21 @@ const getEligibility = async (req, res) => {
 
     // ❌ Screening failed
     if (latest.status === 'FAILED') {
-      return res.json({
-        eligibility_status: 'SCREENING_FAILED',
-        latest_screening_date: latest.screening_date
-      });
-    }
+
+        // 🔥 CHECK REASON
+        if (latest.remarks && latest.remarks.toLowerCase().includes('donation too recent')){
+          return res.json({
+            eligibility_status: 'DONATION_TOO_RECENT',
+            latest_screening_date: latest.screening_date,
+            last_donation_date: latest.last_donation_date 
+          });
+        }
+
+        return res.json({
+          eligibility_status: 'SCREENING_FAILED',
+          latest_screening_date: latest.screening_date
+        });
+      }
 
     // ⚠️ Re-screen required
     if (screeningData.screening_status === 'RE_SCREEN_REQUIRED') {
