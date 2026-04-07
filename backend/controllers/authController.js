@@ -49,6 +49,9 @@ const login = async (req, res) => {
       );
       redirectTo = hospResult.rows.length > 0 ? 'HOSPITAL_DASHBOARD' : 'HOSPITAL_FORM';
       if (hospResult.rows.length > 0) extra.hospital = hospResult.rows[0];
+    } else if (user.role === 'ADMIN') {
+      // 🔥 NEW
+      redirectTo = 'ADMIN_DASHBOARD';
     }
 
     res.json({

@@ -16,6 +16,7 @@ export default function Login() {
     DONOR_DASHBOARD:    '/donor-dashboard',
     HOSPITAL_FORM:      '/hospital-form',
     HOSPITAL_DASHBOARD: '/hospital-dashboard',
+    ADMIN_DASHBOARD: '/admin-dashboard'
   };
 
   const handleLogin = async (e) => {

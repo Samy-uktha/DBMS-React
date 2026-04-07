@@ -8,6 +8,7 @@ import HospitalForm from './pages/HospitalForm';
 import ScreeningForm     from './pages/ScreeningForm';
 import DonorDashboard    from './pages/DonorDashboard';
 import HospitalDashboard from './pages/HospitalDashboard';
+import AdminDashboard from './pages/AdminDashboard';
 
 function ProtectedRoute({ children, allowedRole }) {
   const { auth } = useAuth();
@@ -31,6 +32,8 @@ function AppRoutes() {
 
       <Route path="/hospital-form"      element={<ProtectedRoute allowedRole="HOSPITAL"><HospitalForm /></ProtectedRoute>} />
       <Route path="/hospital-dashboard" element={<ProtectedRoute allowedRole="HOSPITAL"><HospitalDashboard /></ProtectedRoute>} />
+
+      <Route path="/admin-dashboard" element={<ProtectedRoute allowedRole="ADMIN"><AdminDashboard /></ProtectedRoute>} />
     </Routes>
   );
 }
