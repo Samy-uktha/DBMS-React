@@ -309,17 +309,20 @@ export default function DonorDashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: 'Blood Group',  value: profile?.blood_group || '—',                       icon: '🩸' },
-            { label: 'Your City',    value: auth?.user?.city     || '—',                       icon: '📍' },
+            { label: 'Weight',    value: latest?.weight     || '—',                       icon: '⚖️' },
             { label: 'Hemoglobin',   value: latest ? `${latest.hemoglobin_level} g/dL` : '—', icon: '💉' },
             { label: 'Blood Pressure', value: latest?.blood_pressure || '—', icon: '🫀' },
           ].map(card => (
-            <div key={card.label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col gap-1">
-              <span className="text-2xl">{card.icon}</span>
-              <span className="text-xl font-extrabold text-gray-800">{card.value}</span>
-              <span className="text-xs text-gray-500">{card.label}</span>
-            </div>
-          ))}
-        </div>
+            <div
+                key={card.label}
+                className="bg-white rounded-xl p-2 shadow-sm border border-gray-100 flex flex-col gap-0.5"
+              >
+                <span className="text-lg">{card.icon}</span>
+                <span className="text-sm font-bold text-gray-800">{card.value}</span>
+                <span className="text-[10px] text-gray-500">{card.label}</span>
+              </div>
+            ))}
+          </div>
 
         {donateError && (
           <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm flex items-center gap-2">

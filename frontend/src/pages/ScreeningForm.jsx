@@ -15,14 +15,14 @@ export default function ScreeningForm() {
   const [error,   setError]   = useState('');
   const [loading, setLoading] = useState(false);
   const validateForm = () => {
-  if (form.hemoglobin_level< 5 || form.hemoglobin_level > 25) {
-    setError('Hemoglobin must be between 5 and 25');
+  if (form.hemoglobin_level< 5 || form.hemoglobin_level > 30) {
+    setError('Invalid Hemoglobin level');
     return false;
   }
 
   const bpRegex = /^\d{2,3}\/\d{2,3}$/;
   if (!bpRegex.test(form.blood_pressure)) {
-    setError('BP must be like 120/80');
+    setError('BP must be in the format 120/80');
     return false;
   }
 

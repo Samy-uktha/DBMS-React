@@ -4,25 +4,25 @@ const pool = require('../db');
 // ✅ Create Screening (NO PASS/FAIL LOGIC HERE)
 const createScreening = async (req, res) => {
   const userId = req.user.id;
-  const { hemoglobin_level, blood_pressure, weight, last_donation_date } = req.body;
-  //Basic check
-  if (!hemoglobin_level || !blood_pressure || !weight)
-    return res.status(400).json({ error: 'hemoglobin_level, blood_pressure and weight required' });
-   // 🔴 HEMOGLOBIN VALIDATION
-  if (hemoglobin_level < 5 || hemoglobin_level > 25) {
-    return res.status(400).json({
-      error: 'Hemoglobin must be between 5 and 25 g/dL'
-    });
-  }
+  // const { hemoglobin_level, blood_pressure, weight, last_donation_date } = req.body;
+  // //Basic check
+  // if (!hemoglobin_level || !blood_pressure || !weight)
+  //   return res.status(400).json({ error: 'hemoglobin_level, blood_pressure and weight required' });
+  //  // 🔴 HEMOGLOBIN VALIDATION
+  // if (hemoglobin_level < 5 || hemoglobin_level > 25) {
+  //   return res.status(400).json({
+  //     error: 'Hemoglobin must be between 5 and 25 g/dL'
+  //   });
+  // }
 
-  // 🔴 BP FORMAT VALIDATION (must be "120/80")
-  const bpRegex = /^\d{2,3}\/\d{2,3}$/;
+  // // 🔴 BP FORMAT VALIDATION (must be "120/80")
+  // const bpRegex = /^\d{2,3}\/\d{2,3}$/;
 
-  if (!bpRegex.test(blood_pressure)) {
-    return res.status(400).json({
-      error: 'Blood pressure must be in format systolic/diastolic (e.g., 120/80)'
-    });
-  }
+  // if (!bpRegex.test(blood_pressure)) {
+  //   return res.status(400).json({
+  //     error: 'Blood pressure must be in format systolic/diastolic (e.g., 120/80)'
+  //   });
+  // }
 
   try {
     // 1. Get donor_id
