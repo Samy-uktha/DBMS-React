@@ -1,55 +1,72 @@
 const pool = require("../db");
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
 
-exports.register = async (req, res) => {
+const getAdminDashboard = async (req, res) => {
   try {
-    const { name, email, password, phone, city, state, pincode, role } = req.body;
+    const stats = await pool.query(`SELECT * FROM admin_dashboard_stats`);
+    const inventory = await pool.query(`SELECT * FROM inventory_grouped`);
+    const testing = await pool.query(`SELECT * FROM pending_testing_units`);
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    await pool.query(
-      `INSERT INTO users (name, email, password_hash, phone, city, state, pincode, role)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [name, email, hashedPassword, phone, city, state, pincode, role]
-    );
-
-    res.json({ message: "User registered successfully" });
+    res.json({
+      stats: stats.rows[0],
+      inventory: inventory.rows,
+      testing: testing.rows[0],
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
   }
 };
 
-exports.login = async (req, res) => {
+const getInventory = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { blood_bank_id } = req.query;
 
-    const user = await pool.query(
-      "SELECT * FROM users WHERE email=$1",
-      [email]
-    );
+    let result;
 
-    if (user.rows.length === 0) {
-      return res.status(400).json({ message: "Invalid credentials" });
+    if (!blood_bank_id || blood_bank_id === "ALL") {
+      // ✅ OVERALL VIEW
+      result = await pool.query(`
+        SELECT * FROM admin_inventory
+      `);
+    } else {
+      // ✅ SPECIFIC BANK
+      result = await pool.query(
+        `
+        SELECT * FROM admin_inventory_by_bank
+        WHERE blood_bank_id = $1
+        `,
+        [blood_bank_id],
+      );
     }
 
-    const validPassword = await bcrypt.compare(
-      password,
-      user.rows[0].password_hash
-    );
-
-    if (!validPassword) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-
-    const token = jwt.sign(
-      { id: user.rows[0].id, role: user.rows[0].role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
-
-    res.json({ token });
+    res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: "Error fetching inventory" });
   }
+};
+
+const getBloodBanks = async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT id, name FROM blood_banks`);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: "Error fetching blood banks" });
+  }
+};
+
+const getAllDonations = async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT * FROM donation_details`);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: "Error fetching donations" });
+  }
+};
+
+module.exports = {
+  getAdminDashboard,
+  getInventory,
+  getBloodBanks,
+  getAllDonations,
 };
