@@ -64,9 +64,96 @@ const getAllDonations = async (req, res) => {
   }
 };
 
+const testBloodUnits = async (req, res) => {
+  try {
+    const pending = await pool.query(`
+      SELECT * FROM blood_units
+      WHERE status = 'PENDING_TEST'
+      ORDER BY collection_date
+    `);
+
+    const tested = await pool.query(`
+      SELECT bu.*, bt.tested_at
+FROM blood_units bu
+LEFT JOIN LATERAL (
+  SELECT tested_at
+  FROM blood_tests
+  WHERE blood_unit_id = bu.id
+  ORDER BY tested_at DESC
+  LIMIT 1
+) bt ON true
+WHERE bu.status != 'PENDING_TEST'
+ORDER BY bu.collection_date DESC;
+    `);
+
+    res.json({
+      pending: pending.rows,
+      tested: tested.rows,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const checkExpiredUnits = async (req, res) => {
+  try {
+    await pool.query(`SELECT refresh_all_units()`);
+    res.json({ message: "Expiry updated" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const addBloodTest = async (req, res) => {
+  const { blood_unit_id, hiv, hepatitis_b, hepatitis_c, malaria, syphilis } =
+    req.body;
+
+  try {
+    await pool.query(
+      `
+      INSERT INTO blood_tests
+      (blood_unit_id, hiv, hepatitis_b, hepatitis_c, malaria, syphilis)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `,
+      [blood_unit_id, hiv, hepatitis_b, hepatitis_c, malaria, syphilis],
+    );
+
+    // Trigger will update status automatically
+
+    res.json({ message: "Test recorded successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const approveAllUnits = async (req, res) => {
+  try {
+    await pool.query(`
+      INSERT INTO blood_tests
+      (blood_unit_id, hiv, hepatitis_b, hepatitis_c, malaria, syphilis)
+      SELECT id, false, false, false, false, false
+      FROM blood_units
+      WHERE status = 'PENDING_TEST'
+      AND id NOT IN (
+  SELECT blood_unit_id FROM blood_tests
+);
+    `);
+
+    res.json({ message: "All units approved" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   getAdminDashboard,
   getInventory,
   getBloodBanks,
   getAllDonations,
+  testBloodUnits,
+  checkExpiredUnits,
+  addBloodTest,
+  approveAllUnits,
 };

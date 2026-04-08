@@ -4,7 +4,8 @@ const pool = require('../db');
 // ✅ Create Screening (NO PASS/FAIL LOGIC HERE)
 const createScreening = async (req, res) => {
   const userId = req.user.id;
-  // const { hemoglobin_level, blood_pressure, weight, last_donation_date } = req.body;
+  const { hemoglobin_level, blood_pressure, weight, last_donation_date } = req.body;
+  
   // //Basic check
   // if (!hemoglobin_level || !blood_pressure || !weight)
   //   return res.status(400).json({ error: 'hemoglobin_level, blood_pressure and weight required' });
@@ -62,7 +63,7 @@ const createScreening = async (req, res) => {
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error-createscreening' });
   }
 };
 
@@ -92,7 +93,7 @@ const getMyScreening = async (req, res) => {
     res.json(result.rows);
 
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error-getmyscreening' });
   }
 };
 
