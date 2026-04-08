@@ -4,10 +4,10 @@ const pool = require('../db');
 // ✅ Create Screening (NO PASS/FAIL LOGIC HERE)
 const createScreening = async (req, res) => {
   const userId = req.user.id;
-  // const { hemoglobin_level, blood_pressure, weight, last_donation_date } = req.body;
-  // //Basic check
-  // if (!hemoglobin_level || !blood_pressure || !weight)
-  //   return res.status(400).json({ error: 'hemoglobin_level, blood_pressure and weight required' });
+  const { hemoglobin_level, blood_pressure, weight, last_donation_date } = req.body;
+  //Basic check
+  if (!hemoglobin_level || !blood_pressure || !weight)
+    return res.status(400).json({ error: 'hemoglobin_level, blood_pressure and weight required' });
   //  // 🔴 HEMOGLOBIN VALIDATION
   // if (hemoglobin_level < 5 || hemoglobin_level > 25) {
   //   return res.status(400).json({

@@ -90,10 +90,19 @@ const donate = async (req, res) => {
       'SELECT split_donation_into_units($1)',
       [donation.id]
     );
-
+    await client.query(
+      `UPDATE donor_screening
+       SET last_donation_date = CURRENT_DATE
+       WHERE id = (
+         SELECT id FROM donor_screening
+         WHERE donor_id = $1
+         ORDER BY screening_date DESC
+         LIMIT 1
+       )`,
+      [donorId]
+    );
     await client.query('COMMIT');
-    res.status(201).json(donation);
-  } catch (err) {
+    res.status(201).json({ ...donation, donated_bank_id: blood_bank_id });  } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -145,23 +154,25 @@ const getEligibility = async (req, res) => {
 
       const latest = screeningRes.rows[0];
 
-    // ❌ Screening failed
-    if (latest.status === 'FAILED') {
+// 🔥 HANDLE "donation too recent" FIRST (keep same string)
+if (
+  latest.remarks &&
+  latest.remarks.toLowerCase().includes('donation too recent')
+) {
+  return res.json({
+    eligibility_status: 'DONATION_TOO_RECENT',
+    latest_screening_date: latest.screening_date,
+    last_donation_date: latest.last_donation_date
+  });
+}
 
-        // 🔥 CHECK REASON
-        if (latest.remarks && latest.remarks.toLowerCase().includes('donation too recent')){
-          return res.json({
-            eligibility_status: 'DONATION_TOO_RECENT',
-            latest_screening_date: latest.screening_date,
-            last_donation_date: latest.last_donation_date 
-          });
-        }
-
-        return res.json({
-          eligibility_status: 'SCREENING_FAILED',
-          latest_screening_date: latest.screening_date
-        });
-      }
+// ❌ actual failures
+if (latest.status === 'FAILED') {
+  return res.json({
+    eligibility_status: 'SCREENING_FAILED',
+    latest_screening_date: latest.screening_date
+  });
+}
 
     // ⚠️ Re-screen required
     if (screeningData.screening_status === 'RE_SCREEN_REQUIRED') {
@@ -170,7 +181,37 @@ const getEligibility = async (req, res) => {
         latest_screening_date: screeningData.last_screening_date
       });
     }
+    // const recentDonation = await pool.query(
+    //   `SELECT d.donation_date, bb.name as blood_bank_name, d.blood_bank_id
+    //    FROM donations d
+    //    JOIN blood_banks bb ON bb.id = d.blood_bank_id
+    //    WHERE d.donor_id = $1
+    //    ORDER BY d.donation_date DESC
+    //    LIMIT 1`,
+    //   [donorId]
+    // );
 
+    // if (recentDonation.rows.length > 0) {
+    //   const lastDonationDate = new Date(recentDonation.rows[0].donation_date);
+    //   const today = new Date();
+
+    //   const diffDays = Math.floor(
+    //     (today - lastDonationDate) / (1000 * 60 * 60 * 24)
+    //   );
+
+    //   if (diffDays < 90) {
+    //     const eligibleAfter = new Date(lastDonationDate);
+    //     eligibleAfter.setDate(eligibleAfter.getDate() + 90);
+
+    //     return res.json({
+    //       eligibility_status: 'DONATION_TOO_RECENT',
+    //       latest_screening_date: screeningData.last_screening_date,
+    //       last_donation_date: recentDonation.rows[0].donation_date,
+    //       eligible_after: eligibleAfter.toISOString().split('T')[0],
+    //       last_donated_bank_id: recentDonation.rows[0].blood_bank_id
+    //     });
+      // }
+    // }
     // ✅ Eligible (screening-wise)
     res.json({
       eligibility_status: 'ELIGIBLE',
@@ -182,5 +223,38 @@ const getEligibility = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+const getDonationHistory = async (req, res) => {
+  const userId = req.user.id;
 
-module.exports = { createDonor, getMyProfile, donate, getEligibility };
+  try {
+    const donorRes = await pool.query(
+      'SELECT id FROM donors WHERE user_id = $1',
+      [userId]
+    );
+
+    if (donorRes.rows.length === 0)
+      return res.status(404).json({ error: 'Donor not found' });
+
+    const donorId = donorRes.rows[0].id;
+
+    const result = await pool.query(
+      `SELECT d.id, d.donation_date, d.units_collected,
+              bb.name as blood_bank_name,
+              bb.city as blood_bank_city,
+              bb.id as blood_bank_id
+       FROM donations d
+       JOIN blood_banks bb ON bb.id = d.blood_bank_id
+       WHERE d.donor_id = $1
+       ORDER BY d.donation_date DESC`,
+      [donorId]
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+module.exports = { createDonor, getMyProfile, donate, getEligibility ,getDonationHistory};
