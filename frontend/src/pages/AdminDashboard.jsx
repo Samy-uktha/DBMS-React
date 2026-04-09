@@ -194,7 +194,7 @@ export default function AdminDashboard() {
           </div>
 
           <div
-            onClick={() => navigate("/testing")}
+            onClick={() => navigate("/admin/testing")}
             className="cursor-pointer bg-white rounded-2xl p-6 border shadow-sm hover:shadow-md transition"
           >
             <h3 className="font-semibold text-gray-800">Blood Testing</h3>

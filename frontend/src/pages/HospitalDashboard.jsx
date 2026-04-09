@@ -60,6 +60,7 @@ export default function HospitalDashboard() {
     });
     const data = await res.json();
     setRequests(data);
+      console.log("RESPONSE:", res.status, data); // ← check response
   };
 
   const cancelRequest = async (id) => {
