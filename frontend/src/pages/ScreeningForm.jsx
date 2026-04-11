@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -12,34 +12,58 @@ export default function ScreeningForm() {
     hemoglobin_level: '', blood_pressure: '', weight: '',
     last_donation_date: '', remarks: '',
   });
+
+  const [hospitals, setHospitals]         = useState([]);
+  const [hospitalsLoading, setHospitalsLoading] = useState(true);
+  const [selectedHospital, setSelectedHospital] = useState('');
+
   const [error,   setError]   = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Fetch hospitals in donor's city/state
+  useEffect(() => {
+    if (!auth?.token) return;
+    fetch('http://localhost:5000/api/admin/hospitals-list', {
+      headers: { Authorization: `Bearer ${auth.token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setHospitals(data);
+      })
+      .catch(() => {})
+      .finally(() => setHospitalsLoading(false));
+  }, [auth?.token]);
+
   const validateForm = () => {
-  if (form.hemoglobin_level< 5 || form.hemoglobin_level > 30) {
-    setError('Invalid Hemoglobin level');
-    return false;
-  }
+    if (form.hemoglobin_level < 5 || form.hemoglobin_level > 30) {
+      setError('Invalid hemoglobin level');
+      return false;
+    }
+    const bpRegex = /^\d{2,3}\/\d{2,3}$/;
+    if (!bpRegex.test(form.blood_pressure)) {
+      setError('BP must be in the format 120/80');
+      return false;
+    }
+    return true;
+  };
 
-  const bpRegex = /^\d{2,3}\/\d{2,3}$/;
-  if (!bpRegex.test(form.blood_pressure)) {
-    setError('BP must be in the format 120/80');
-    return false;
-  }
-
-  return true;
-};
   const handleSubmit = async (e) => {
-   e.preventDefault();
-
-    if (!validateForm()) return;  
-    
+    e.preventDefault();
+    if (!validateForm()) return;
     setError('');
     setLoading(true);
     try {
+      // hospital_id is intentionally NOT sent — no schema change needed
       const res = await fetch('http://localhost:5000/api/screening', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
-        body:    JSON.stringify(form),
+        body:    JSON.stringify({
+          hemoglobin_level: form.hemoglobin_level,
+          blood_pressure:   form.blood_pressure,
+          weight:           form.weight,
+          last_donation_date: form.last_donation_date || undefined,
+          remarks:          form.remarks || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Submission failed.'); return; }
@@ -109,6 +133,38 @@ export default function ScreeningForm() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
 
+          {/* Screening Hospital */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Screening Hospital
+              <span className="text-gray-400 text-xs ml-1">(where you're getting screened)</span>
+            </label>
+            {hospitalsLoading ? (
+              <div className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50 text-gray-400">
+                Loading hospitals...
+              </div>
+            ) : hospitals.length === 0 ? (
+              <div className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50 text-gray-400">
+                No hospitals found in your area
+              </div>
+            ) : (
+              <select
+                value={selectedHospital}
+                onChange={(e) => setSelectedHospital(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50
+                           focus:outline-none focus:ring-2 focus:ring-red-400"
+              >
+                <option value="">Select a hospital</option>
+                {hospitals.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.hospital_name} — {h.city}, {h.state}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Hemoglobin */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Hemoglobin Level (g/dL)
@@ -121,11 +177,12 @@ export default function ScreeningForm() {
             />
           </div>
 
+          {/* Blood Pressure */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Blood Pressure
             </label>
-            <input type="text" placeholder="e.g. 120/80 mmHg" required
+            <input type="text" placeholder="e.g. 120/80" required
               value={form.blood_pressure}
               onChange={e => setForm({ ...form, blood_pressure: e.target.value })}
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50
@@ -133,6 +190,7 @@ export default function ScreeningForm() {
             />
           </div>
 
+          {/* Weight */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Weight (kg) <span className="text-gray-400 text-xs">— min 45 kg to donate</span>
@@ -145,6 +203,7 @@ export default function ScreeningForm() {
             />
           </div>
 
+          {/* Last Donation Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Last Donation Date <span className="text-gray-400 text-xs">(optional)</span>
@@ -157,6 +216,7 @@ export default function ScreeningForm() {
             />
           </div>
 
+          {/* Remarks */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Remarks <span className="text-gray-400 text-xs">(optional)</span>

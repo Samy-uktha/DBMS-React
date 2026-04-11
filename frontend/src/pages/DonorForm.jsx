@@ -11,25 +11,42 @@ export default function DonorForm() {
   const [error,   setError]   = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      const res = await fetch('http://localhost:5000/api/donors', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
-        body:    JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Failed to save. Try again.'); return; }
-      navigate('/screening?from=new');
-    } catch {
-      setError('Server error.');
-    } finally {
-      setLoading(false);
+ 
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError('');
+
+  // Age check before hitting the API
+  if (form.date_of_birth) {
+    const dob = new Date(form.date_of_birth);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
     }
-  };
+    if (age < 18) {
+      setError(`You must be at least 18 years old to register as a donor. You are currently ${age} year${age === 1 ? '' : 's'} old.`);
+      return;
+    }
+  }
+
+  setLoading(true);
+  try {
+    const res = await fetch('http://localhost:5000/api/donors', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
+      body:    JSON.stringify(form),
+    });
+    const data = await res.json();
+    if (!res.ok) { setError(data.error || 'Failed to save. Try again.'); return; }
+    navigate('/screening?from=new');
+  } catch {
+    setError('Server error.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-red-50 flex flex-col items-center justify-center px-4 py-10">
@@ -79,11 +96,17 @@ export default function DonorForm() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
             <input type="date" required
-              value={form.date_of_birth}
-              onChange={e => setForm({ ...form, date_of_birth: e.target.value })}
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50
-                         focus:outline-none focus:ring-2 focus:ring-red-400"
-            />
+  value={form.date_of_birth}
+  max={new Date(new Date().setFullYear(new Date().getFullYear() - 18))
+    .toISOString().split('T')[0]}
+  onChange={e => {
+    setForm({ ...form, date_of_birth: e.target.value });
+    e.target.setCustomValidity('');
+  }}
+  onInvalid={e => e.target.setCustomValidity('Invalid age')}
+  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50
+             focus:outline-none focus:ring-2 focus:ring-red-400"
+/>
           </div>
 
           {error && (

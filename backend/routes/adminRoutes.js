@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const { getAdminDashboard, getInventory, getBloodBanks, getAllDonations, testBloodUnits, addBloodTest, checkExpiredUnits, approveAllUnits,getAllRequests,getHospitalRequests,getHospitalsList,fulfillRequestManual,autoFulfillRequests } = require("../controllers/adminController");
+const { getAdminDashboard, getInventory, getBloodBanks, getAllDonations, testBloodUnits, addBloodTest, checkExpiredUnits, approveAllUnits,getAllRequests,getHospitalRequests,getHospitalsList,fulfillRequestManual,autoFulfillRequests,getCompletedRequests } = require("../controllers/adminController");
 
 router.get("/dashboard", getAdminDashboard);
 router.get("/inventory", getInventory);
@@ -16,6 +16,7 @@ router.get("/hospitals-list", getHospitalsList);
 router.get("/hospital-requests/:hospitalId", getHospitalRequests);
 router.post("/fulfill-request", fulfillRequestManual);
 router.post("/auto-fulfill", autoFulfillRequests);
+router.get("/completed-requests", getCompletedRequests);
 // router.post("/donation", recordDonation);
 // router.post("/fulfill/:requestId", fulfillRequest);
 

@@ -282,6 +282,15 @@ const autoFulfillRequests = async (req, res) => {
     client.release();
   }
 };
+const getCompletedRequests = async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT * FROM get_completed_requests()`);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error fetching completed requests" });
+  }
+};
 
 module.exports = {
   getAdminDashboard,
@@ -297,4 +306,5 @@ module.exports = {
   getHospitalRequests,
   fulfillRequestManual,
   autoFulfillRequests,
+  getCompletedRequests
 };
