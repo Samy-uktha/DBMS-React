@@ -60,7 +60,7 @@ export default function HospitalDashboard() {
     });
     const data = await res.json();
     setRequests(data);
-      console.log("RESPONSE:", res.status, data); // ← check response
+    console.log("RESPONSE:", res.status, data); // ← check response
   };
 
   const cancelRequest = async (id) => {
@@ -356,30 +356,48 @@ export default function HospitalDashboard() {
           {requests
             .filter((r) => r.status === "COMPLETED")
             .map((r) => (
-              <div key={r.id} className="border-b py-3 flex justify-between">
+              <div key={r.id} className="border-b py-4 flex justify-between">
                 <div>
                   <p className="font-semibold">{r.blood_group}</p>
 
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-500">
                     {r.units_requested} units fulfilled
                   </p>
 
-                  {/* 🆕 Requested Date */}
-                  <p className="text-xs text-gray-400">
-                    Requested on: {new Date(r.created_at).toLocaleDateString()}
-                  </p>
-
-                  {/* 🆕 Completed Date */}
-                  {r.completed_at && (
-                    <p className="text-xs text-gray-400">
-                      Completed on: {new Date(r.completed_at).toLocaleString()}
-                    </p>
+                  {/* 🆕 Collection Point Information */}
+                  {r.collection_bank_name && (
+                    <div className="mt-2 text-sm">
+                      <p className="text-blue-600 font-bold">
+                        Collection Point:
+                      </p>
+                      <p className="text-gray-700 font-medium">
+                        {r.collection_bank_name}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {r.collection_address}, {r.collection_city}
+                      </p>
+                    </div>
                   )}
+
+                  <div className="mt-2 flex gap-4">
+                    <p className="text-xs text-gray-400">
+                      Requested: {new Date(r.created_at).toLocaleDateString()}
+                    </p>
+                    {r.last_fulfilled_at && (
+                      <p className="text-xs text-gray-400">
+                        Fulfilled:{" "}
+                        {new Date(r.last_fulfilled_at).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                <span className="text-sm text-green-600 font-medium">
-                  Completed
-                </span>
+                {/* Status Badge - matches your Ongoing Requests style */}
+                <div className="flex items-start">
+                  <span className="text-sm text-green-600 font-medium px-2 py-1 bg-green-50 rounded">
+                    {r.status}
+                  </span>
+                </div>
               </div>
             ))}
         </div>

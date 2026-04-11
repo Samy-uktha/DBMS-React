@@ -161,125 +161,178 @@ const getHospitalRequests = async (req, res) => {
   }
 };
 
+// const fulfillRequestManual = async (req, res) => {
+//   const { request_id, units } = req.body;
+
+//   if (!request_id || !units || units < 1)
+//     return res.status(400).json({ error: "request_id and units (≥1) required" });
+
+//   const client = await pool.connect();
+//   try {
+//     await client.query("BEGIN");
+
+//     const reqRes = await client.query(
+//       `SELECT * FROM get_request_by_id($1)`,
+//       [request_id]
+//     );
+
+//     if (reqRes.rows.length === 0) {
+//       await client.query("ROLLBACK");
+//       return res.status(404).json({ error: "Request not found" });
+//     }
+
+//     const req_data = reqRes.rows[0];
+
+//     if (["COMPLETED", "CANCELLED"].includes(req_data.status)) {
+//       await client.query("ROLLBACK");
+//       return res.status(400).json({ error: "Request is already " + req_data.status.toLowerCase() });
+//     }
+
+//     const remaining = req_data.units_requested - req_data.units_fulfilled;
+//     const toIssue = Math.min(units, remaining);
+
+//     if (toIssue <= 0) {
+//       await client.query("ROLLBACK");
+//       return res.status(400).json({ error: "No units remaining to fulfill" });
+//     }
+
+//     const unitsRes = await client.query(
+//       `SELECT * FROM get_compatible_units($1, $2)`,
+//       [req_data.blood_group, toIssue]
+//     );
+
+//     if (unitsRes.rows.length === 0) {
+//       await client.query("ROLLBACK");
+//       return res.status(400).json({
+//         error: `No compatible available units for blood group ${req_data.blood_group}`,
+//       });
+//     }
+
+//     let issued = 0;
+//     for (const unit of unitsRes.rows) {
+//       await client.query(`SELECT issue_blood_unit($1, $2)`, [request_id, unit.id]);
+//       issued++;
+//     }
+
+//     await client.query("COMMIT");
+
+//     res.json({
+//       message: `Successfully issued ${issued} unit(s) for request #${request_id}`,
+//       issued,
+//     });
+//   } catch (err) {
+//     await client.query("ROLLBACK");
+//     console.error("FULFILL ERROR:", err);
+//     res.status(500).json({ error: err.message || "Failed to fulfill request" });
+//   } finally {
+//     client.release();
+//   }
+// };
+
 const fulfillRequestManual = async (req, res) => {
   const { request_id, units } = req.body;
 
-  if (!request_id || !units || units < 1)
-    return res.status(400).json({ error: "request_id and units (≥1) required" });
-
-  const client = await pool.connect();
   try {
-    await client.query("BEGIN");
-
-    const reqRes = await client.query(
-      `SELECT * FROM get_request_by_id($1)`,
-      [request_id]
+    // Single atomic call to the database
+    const result = await pool.query(
+      `SELECT fulfill_request($1, $2) AS issued`, 
+      [request_id, units]
     );
 
-    if (reqRes.rows.length === 0) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({ error: "Request not found" });
+    const issued = result.rows[0].issued;
+
+    if (issued === 0) {
+      return res.status(400).json({ error: "No compatible units available for this request." });
     }
-
-    const req_data = reqRes.rows[0];
-
-    if (["COMPLETED", "CANCELLED"].includes(req_data.status)) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({ error: "Request is already " + req_data.status.toLowerCase() });
-    }
-
-    const remaining = req_data.units_requested - req_data.units_fulfilled;
-    const toIssue = Math.min(units, remaining);
-
-    if (toIssue <= 0) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({ error: "No units remaining to fulfill" });
-    }
-
-    const unitsRes = await client.query(
-      `SELECT * FROM get_compatible_units($1, $2)`,
-      [req_data.blood_group, toIssue]
-    );
-
-    if (unitsRes.rows.length === 0) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({
-        error: `No compatible available units for blood group ${req_data.blood_group}`,
-      });
-    }
-
-    let issued = 0;
-    for (const unit of unitsRes.rows) {
-      await client.query(`SELECT issue_blood_unit($1, $2)`, [request_id, unit.id]);
-      issued++;
-    }
-
-    await client.query("COMMIT");
 
     res.json({
-      message: `Successfully issued ${issued} unit(s) for request #${request_id}`,
+      message: `Successfully allocated and issued ${issued} unit(s).`,
       issued,
     });
   } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("FULFILL ERROR:", err);
-    res.status(500).json({ error: err.message || "Failed to fulfill request" });
-  } finally {
-    client.release();
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 };
+
+// const autoFulfillRequests = async (req, res) => {
+//   const { strategy } = req.body;
+
+//   if (!["timestamp", "partial"].includes(strategy))
+//     return res.status(400).json({ error: "strategy must be 'timestamp' or 'partial'" });
+
+//   const client = await pool.connect();
+//   try {
+//     await client.query("BEGIN");
+
+//     const requestsRes = await client.query(
+//       `SELECT * FROM get_pending_requests($1)`,
+//       [strategy]
+//     );
+
+//     const requests = requestsRes.rows;
+//     let totalIssued = 0;
+//     let requestsFulfilled = 0;
+
+//     for (const req_data of requests) {
+//       const remaining = req_data.units_requested - req_data.units_fulfilled;
+//       if (remaining <= 0) continue;
+
+//       const unitsRes = await client.query(
+//         `SELECT * FROM get_compatible_units($1, $2)`,
+//         [req_data.blood_group, remaining]
+//       );
+
+//       for (const unit of unitsRes.rows) {
+//         await client.query(`SELECT issue_blood_unit($1, $2)`, [req_data.id, unit.id]);
+//         totalIssued++;
+//       }
+
+//       if (unitsRes.rows.length >= remaining) {
+//         requestsFulfilled++;
+//       }
+//     }
+
+//     await client.query("COMMIT");
+
+//     res.json({
+//       message: `Auto-fulfill complete. ${totalIssued} unit(s) issued across ${requestsFulfilled} fully completed request(s).`,
+//       total_issued: totalIssued,
+//       requests_fulfilled: requestsFulfilled,
+//     });
+//   } catch (err) {
+//     await client.query("ROLLBACK");
+//     console.error("AUTO-FULFILL ERROR:", err);
+//     res.status(500).json({ error: err.message || "Auto-fulfill failed" });
+//   } finally {
+//     client.release();
+//   }
+// };
 
 const autoFulfillRequests = async (req, res) => {
   const { strategy } = req.body;
 
-  if (!["timestamp", "partial"].includes(strategy))
+  if (!["timestamp", "partial"].includes(strategy)) {
     return res.status(400).json({ error: "strategy must be 'timestamp' or 'partial'" });
+  }
 
-  const client = await pool.connect();
   try {
-    await client.query("BEGIN");
-
-    const requestsRes = await client.query(
-      `SELECT * FROM get_pending_requests($1)`,
+    // Execute the entire auto-fulfillment process in one step
+    const result = await pool.query(
+      `SELECT * FROM auto_fulfill_requests($1)`,
       [strategy]
     );
 
-    const requests = requestsRes.rows;
-    let totalIssued = 0;
-    let requestsFulfilled = 0;
-
-    for (const req_data of requests) {
-      const remaining = req_data.units_requested - req_data.units_fulfilled;
-      if (remaining <= 0) continue;
-
-      const unitsRes = await client.query(
-        `SELECT * FROM get_compatible_units($1, $2)`,
-        [req_data.blood_group, remaining]
-      );
-
-      for (const unit of unitsRes.rows) {
-        await client.query(`SELECT issue_blood_unit($1, $2)`, [req_data.id, unit.id]);
-        totalIssued++;
-      }
-
-      if (unitsRes.rows.length >= remaining) {
-        requestsFulfilled++;
-      }
-    }
-
-    await client.query("COMMIT");
+    const { total_issued, requests_completed } = result.rows[0];
 
     res.json({
-      message: `Auto-fulfill complete. ${totalIssued} unit(s) issued across ${requestsFulfilled} fully completed request(s).`,
-      total_issued: totalIssued,
-      requests_fulfilled: requestsFulfilled,
+      message: `Auto-fulfill complete.`,
+      total_issued,
+      requests_fulfilled: requests_completed,
     });
   } catch (err) {
-    await client.query("ROLLBACK");
     console.error("AUTO-FULFILL ERROR:", err);
-    res.status(500).json({ error: err.message || "Auto-fulfill failed" });
-  } finally {
-    client.release();
+    res.status(500).json({ error: err.message });
   }
 };
 
