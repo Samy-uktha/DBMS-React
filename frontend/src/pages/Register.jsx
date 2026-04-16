@@ -213,7 +213,7 @@ export default function Register() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
               <input
                 name="name" type="text"
-                placeholder={role === 'DONOR' ? 'John Doe' : 'City General Hospital'}
+                placeholder={role === 'DONOR' ? 'John Doe' : 'Enter your name'}
                 value={form.name} onChange={handleChange}
                 className={`w-full border rounded-xl px-4 py-2.5 text-sm bg-gray-50
                             focus:outline-none focus:ring-2 focus:ring-red-400

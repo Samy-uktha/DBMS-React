@@ -41,64 +41,33 @@ const getMyProfile = async (req, res) => {
 };
 
 const donate = async (req, res) => {
-  console.log('Donate request body:', req.body);
   const userId = req.user.id;
   const { blood_bank_id, units_collected } = req.body;
+
   if (!blood_bank_id)
     return res.status(400).json({ error: 'blood_bank_id required' });
+
   const units = units_collected !== undefined ? parseInt(units_collected) : 3;
   if (isNaN(units) || units < 1 || units > 5)
     return res.status(400).json({ error: 'units_collected must be between 1 and 5' });
 
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-
-    // 1. Get donor
-    const donorResult = await client.query(
-      'SELECT id FROM donors WHERE user_id = $1', [userId]
+    const result = await pool.query(
+      'SELECT * FROM process_donation($1, $2, $3)',
+      [userId, blood_bank_id, units]
     );
-    if (donorResult.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Donor not found' });
-    }
-    const donorId = donorResult.rows[0].id;
-
-    // 2. Check passed screening
-    const screenResult = await client.query(
-      `SELECT id FROM donor_screening
-       WHERE donor_id = $1 AND status = 'PASSED'
-       ORDER BY screening_date DESC LIMIT 1`,
-      [donorId]
-    );
-    if (screenResult.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'No passed screening found. Complete screening before donating.' });
-    }
-    const screeningId = screenResult.rows[0].id;
-
-    // 3. Insert donation
-    const donationResult = await client.query(
-      `INSERT INTO donations (donor_id, blood_bank_id, screening_id, donation_date, units_collected)
-       VALUES ($1, $2, $3, CURRENT_DATE, $4) RETURNING *`,
-      [donorId, blood_bank_id, screeningId, units]
-    );
-    const donation = donationResult.rows[0];
-
-    // 4. Split into blood_units via Postgres function
-    await client.query(
-      'SELECT split_donation_into_units($1)',
-      [donation.id]
-    );
-
-    await client.query('COMMIT');
-    res.status(201).json(donation);
+    res.status(201).json(result.rows[0]);
   } catch (err) {
-    await client.query('ROLLBACK');
+    // RAISE EXCEPTION messages from Postgres land in err.message
+    if (err.message.startsWith('DONOR_NOT_FOUND'))
+      return res.status(404).json({ error: 'Donor not found' });
+    if (err.message.startsWith('NO_PASSED_SCREENING'))
+      return res.status(400).json({ error: 'No passed screening found. Complete screening before donating.' });
+    if (err.message.startsWith('INVALID_UNITS'))
+      return res.status(400).json({ error: err.message });
+
     console.error(err);
     res.status(500).json({ error: 'Server error' });
-  } finally {
-    client.release();
   }
 };
 

@@ -4,8 +4,10 @@ const pool = require('../db');
 // ✅ Create Screening (NO PASS/FAIL LOGIC HERE)
 const createScreening = async (req, res) => {
   const userId = req.user.id;
-  const { hemoglobin_level, blood_pressure, weight, last_donation_date } = req.body;
-  
+  const { hemoglobin_level, blood_pressure, weight, last_donation_date,hospital_id } = req.body;
+  if (!hospital_id) {
+    return res.status(400).json({ error: 'Please select a screening hospital.' });
+  }
  
 
   try {
@@ -23,15 +25,16 @@ const createScreening = async (req, res) => {
     // 2. Insert screening (NO status, NO remarks)
     const result = await pool.query(
       `INSERT INTO donor_screening
-         (donor_id, screening_date, hemoglobin_level, blood_pressure, weight, last_donation_date)
-       VALUES ($1, CURRENT_DATE, $2, $3, $4, $5)
+         (donor_id, screening_date, hemoglobin_level, blood_pressure, weight, last_donation_date, hospital_id)
+       VALUES ($1, CURRENT_DATE, $2, $3, $4, $5,$6)
        RETURNING *`,
       [
         donorId,
         hemoglobin_level,
         blood_pressure,
         weight,
-        last_donation_date || null
+        last_donation_date || null,
+        hospital_id || null
       ]
     );
 

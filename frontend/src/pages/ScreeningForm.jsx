@@ -35,6 +35,10 @@ export default function ScreeningForm() {
   }, [auth?.token]);
 
   const validateForm = () => {
+    if (!selectedHospital) {
+    setError('Please select a screening hospital before proceeding.');
+    return false;
+  }
     if (form.hemoglobin_level < 5 || form.hemoglobin_level > 30) {
       setError('Invalid hemoglobin level');
       return false;
@@ -63,6 +67,7 @@ export default function ScreeningForm() {
           weight:           form.weight,
           last_donation_date: form.last_donation_date || undefined,
           remarks:          form.remarks || undefined,
+          hospital_id:      selectedHospital || undefined,
         }),
       });
       const data = await res.json();
@@ -170,6 +175,7 @@ export default function ScreeningForm() {
               Hemoglobin Level (g/dL)
             </label>
             <input type="number" step="0.1" min="1" placeholder="e.g. 14.5" required
+              disabled={!selectedHospital}
               value={form.hemoglobin_level}
               onChange={e => setForm({ ...form, hemoglobin_level: e.target.value })}
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50
