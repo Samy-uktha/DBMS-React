@@ -189,6 +189,7 @@ export default function ScreeningForm() {
               Blood Pressure
             </label>
             <input type="text" placeholder="e.g. 120/80" required
+              disabled={!selectedHospital}
               value={form.blood_pressure}
               onChange={e => setForm({ ...form, blood_pressure: e.target.value })}
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50
@@ -202,6 +203,7 @@ export default function ScreeningForm() {
               Weight (kg) <span className="text-gray-400 text-xs">— min 45 kg to donate</span>
             </label>
             <input type="number" step="0.1" min="1" placeholder="e.g. 65.5" required
+              disabled={!selectedHospital}
               value={form.weight}
               onChange={e => setForm({ ...form, weight: e.target.value })}
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50
@@ -215,7 +217,9 @@ export default function ScreeningForm() {
               Last Donation Date <span className="text-gray-400 text-xs">(optional)</span>
             </label>
             <input type="date"
+              disabled={!selectedHospital}
               value={form.last_donation_date}
+
               onChange={e => setForm({ ...form, last_donation_date: e.target.value })}
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50
                          focus:outline-none focus:ring-2 focus:ring-red-400"
@@ -228,6 +232,7 @@ export default function ScreeningForm() {
               Remarks <span className="text-gray-400 text-xs">(optional)</span>
             </label>
             <textarea rows={3} placeholder="Any medical notes..."
+              disabled={!selectedHospital}
               value={form.remarks}
               onChange={e => setForm({ ...form, remarks: e.target.value })}
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50

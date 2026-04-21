@@ -63,15 +63,15 @@ const testBloodUnits = async (req, res) => {
       ORDER BY collection_date`);
     const tested = await pool.query(`SELECT bu.*, bt.tested_at
       FROM blood_units bu
-LEFT JOIN LATERAL (
-  SELECT tested_at
-  FROM blood_tests
-  WHERE blood_unit_id = bu.id
-  ORDER BY tested_at DESC
-  LIMIT 1
-) bt ON true
-WHERE bu.status != 'PENDING_TEST'
-ORDER BY bu.collection_date DESC;`);
+      LEFT JOIN LATERAL (
+        SELECT tested_at
+        FROM blood_tests
+        WHERE blood_unit_id = bu.id
+        ORDER BY tested_at DESC
+        LIMIT 1
+      ) bt ON true
+      WHERE bu.status != 'PENDING_TEST'
+      ORDER BY bu.collection_date DESC;`);
 
     res.json({
       pending: pending.rows,
@@ -139,11 +139,29 @@ const getAllRequests = async (req, res) => {
 
 const getHospitalsList = async (req, res) => {
   try {
-    const result = await pool.query(`SELECT * FROM hospitals_list_view`);
+    const userResult = await pool.query(
+      'SELECT state FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (userResult.rows.length === 0)
+      return res.status(404).json({ error: 'User not found' });
+
+    const userState = userResult.rows[0].state;
+
+    const result = await pool.query(
+      `SELECT h.id, h.hospital_name, h.license_number, u.city, u.state
+       FROM hospitals h
+       JOIN users u ON u.id = h.user_id
+       WHERE LOWER(u.state) = LOWER($1)
+       ORDER BY h.hospital_name`,
+      [userState]
+    );
+
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Error fetching hospitals" });
+    res.status(500).json({ error: 'Error fetching hospitals' });
   }
 };
 
@@ -161,81 +179,12 @@ const getHospitalRequests = async (req, res) => {
   }
 };
 
-// const fulfillRequestManual = async (req, res) => {
-//   const { request_id, units } = req.body;
-
-//   if (!request_id || !units || units < 1)
-//     return res.status(400).json({ error: "request_id and units (≥1) required" });
-
-//   const client = await pool.connect();
-//   try {
-//     await client.query("BEGIN");
-
-//     const reqRes = await client.query(
-//       `SELECT * FROM get_request_by_id($1)`,
-//       [request_id]
-//     );
-
-//     if (reqRes.rows.length === 0) {
-//       await client.query("ROLLBACK");
-//       return res.status(404).json({ error: "Request not found" });
-//     }
-
-//     const req_data = reqRes.rows[0];
-
-//     if (["COMPLETED", "CANCELLED"].includes(req_data.status)) {
-//       await client.query("ROLLBACK");
-//       return res.status(400).json({ error: "Request is already " + req_data.status.toLowerCase() });
-//     }
-
-//     const remaining = req_data.units_requested - req_data.units_fulfilled;
-//     const toIssue = Math.min(units, remaining);
-
-//     if (toIssue <= 0) {
-//       await client.query("ROLLBACK");
-//       return res.status(400).json({ error: "No units remaining to fulfill" });
-//     }
-
-//     const unitsRes = await client.query(
-//       `SELECT * FROM get_compatible_units($1, $2)`,
-//       [req_data.blood_group, toIssue]
-//     );
-
-//     if (unitsRes.rows.length === 0) {
-//       await client.query("ROLLBACK");
-//       return res.status(400).json({
-//         error: `No compatible available units for blood group ${req_data.blood_group}`,
-//       });
-//     }
-
-//     let issued = 0;
-//     for (const unit of unitsRes.rows) {
-//       await client.query(`SELECT issue_blood_unit($1, $2)`, [request_id, unit.id]);
-//       issued++;
-//     }
-
-//     await client.query("COMMIT");
-
-//     res.json({
-//       message: `Successfully issued ${issued} unit(s) for request #${request_id}`,
-//       issued,
-//     });
-//   } catch (err) {
-//     await client.query("ROLLBACK");
-//     console.error("FULFILL ERROR:", err);
-//     res.status(500).json({ error: err.message || "Failed to fulfill request" });
-//   } finally {
-//     client.release();
-//   }
-// };
-
 const fulfillRequestManual = async (req, res) => {
   const { request_id, units } = req.body;
 
   try {
-    // Single atomic call to the database
     const result = await pool.query(
-      `SELECT fulfill_request($1, $2) AS issued`, 
+      `SELECT fulfill_request($1, $2) AS issued`,
       [request_id, units]
     );
 
@@ -255,60 +204,6 @@ const fulfillRequestManual = async (req, res) => {
   }
 };
 
-// const autoFulfillRequests = async (req, res) => {
-//   const { strategy } = req.body;
-
-//   if (!["timestamp", "partial"].includes(strategy))
-//     return res.status(400).json({ error: "strategy must be 'timestamp' or 'partial'" });
-
-//   const client = await pool.connect();
-//   try {
-//     await client.query("BEGIN");
-
-//     const requestsRes = await client.query(
-//       `SELECT * FROM get_pending_requests($1)`,
-//       [strategy]
-//     );
-
-//     const requests = requestsRes.rows;
-//     let totalIssued = 0;
-//     let requestsFulfilled = 0;
-
-//     for (const req_data of requests) {
-//       const remaining = req_data.units_requested - req_data.units_fulfilled;
-//       if (remaining <= 0) continue;
-
-//       const unitsRes = await client.query(
-//         `SELECT * FROM get_compatible_units($1, $2)`,
-//         [req_data.blood_group, remaining]
-//       );
-
-//       for (const unit of unitsRes.rows) {
-//         await client.query(`SELECT issue_blood_unit($1, $2)`, [req_data.id, unit.id]);
-//         totalIssued++;
-//       }
-
-//       if (unitsRes.rows.length >= remaining) {
-//         requestsFulfilled++;
-//       }
-//     }
-
-//     await client.query("COMMIT");
-
-//     res.json({
-//       message: `Auto-fulfill complete. ${totalIssued} unit(s) issued across ${requestsFulfilled} fully completed request(s).`,
-//       total_issued: totalIssued,
-//       requests_fulfilled: requestsFulfilled,
-//     });
-//   } catch (err) {
-//     await client.query("ROLLBACK");
-//     console.error("AUTO-FULFILL ERROR:", err);
-//     res.status(500).json({ error: err.message || "Auto-fulfill failed" });
-//   } finally {
-//     client.release();
-//   }
-// };
-
 const autoFulfillRequests = async (req, res) => {
   const { strategy } = req.body;
 
@@ -317,7 +212,6 @@ const autoFulfillRequests = async (req, res) => {
   }
 
   try {
-    // Execute the entire auto-fulfillment process in one step
     const result = await pool.query(
       `SELECT * FROM auto_fulfill_requests($1)`,
       [strategy]
@@ -335,6 +229,20 @@ const autoFulfillRequests = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+const getHospitalRequests = async (req, res) => {
+  const { hospitalId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM get_hospital_requests($1)`,
+      [hospitalId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error fetching hospital requests" });
+  }
+};
+
 const getCompletedRequests = async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM get_completed_requests()`);
@@ -359,5 +267,5 @@ module.exports = {
   getHospitalRequests,
   fulfillRequestManual,
   autoFulfillRequests,
-  getCompletedRequests
+  getCompletedRequests,
 };
