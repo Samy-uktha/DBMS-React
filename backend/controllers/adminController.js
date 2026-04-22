@@ -137,6 +137,16 @@ const getAllRequests = async (req, res) => {
   }
 };
 
+const getCompletedRequests = async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT * FROM get_completed_requests()`);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error fetching completed requests" });
+  }
+};
+
 const getHospitalsList = async (req, res) => {
   try {
     const userResult = await pool.query(
@@ -229,27 +239,15 @@ const autoFulfillRequests = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-const getHospitalRequests = async (req, res) => {
-  const { hospitalId } = req.params;
-  try {
-    const result = await pool.query(
-      `SELECT * FROM get_hospital_requests($1)`,
-      [hospitalId]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error fetching hospital requests" });
-  }
-};
 
-const getCompletedRequests = async (req, res) => {
+
+const getTransferHistory = async (req, res) => {
   try {
-    const result = await pool.query(`SELECT * FROM get_completed_requests()`);
+    const result = await pool.query(`SELECT * FROM transfer_history_view LIMIT 50`);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Error fetching completed requests" });
+    res.status(500).json({ error: "Error fetching transfer history" });
   }
 };
 
@@ -268,4 +266,5 @@ module.exports = {
   fulfillRequestManual,
   autoFulfillRequests,
   getCompletedRequests,
+  getTransferHistory
 };

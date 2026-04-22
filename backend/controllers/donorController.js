@@ -48,8 +48,8 @@ const donate = async (req, res) => {
     return res.status(400).json({ error: 'blood_bank_id required' });
 
   const units = units_collected !== undefined ? parseInt(units_collected) : 3;
-  if (isNaN(units) || units < 1 || units > 5)
-    return res.status(400).json({ error: 'units_collected must be between 1 and 5' });
+  if (isNaN(units) || units < 1 || units > 8)
+    return res.status(400).json({ error: 'units_collected must be between 1 and 8' });
 
   try {
     const result = await pool.query(

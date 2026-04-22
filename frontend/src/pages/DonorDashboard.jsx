@@ -166,7 +166,7 @@ export default function DonorDashboard() {
                   onChange={e => setUnits(prev => ({ ...prev, [bb.id]: parseInt(e.target.value) }))}
                   disabled={isDonating}
                   className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-300 transition">
-                  {[1, 2, 3, 4, 5].map(n => (
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
                     <option key={n} value={n}>{n} unit{n > 1 ? 's' : ''}</option>
                   ))}
                 </select>

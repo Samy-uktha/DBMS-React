@@ -35,6 +35,10 @@ export default function AdminDashboard() {
   const [showRequests, setShowRequests] = useState(false);
   const [loadingRequests, setLoadingRequests] = useState(false);
 
+  // transfer logs
+  const [transfers, setTransfers] = useState([]);
+
+
   useEffect(() => {
     if (!auth) {
       navigate("/login");
@@ -84,6 +88,12 @@ export default function AdminDashboard() {
       .catch(() => setInventory([]));
   }, [selectedBank, auth?.token]);
 
+  useEffect(() => {
+    fetch("http://localhost:5000/api/admin/transfers") // Ensure route is defined in your express app
+      .then((res) => res.json())
+      .then((data) => setTransfers(data));
+  }, []);
+
   const fetchDonations = async () => {
     try {
       setLoadingDonations(true);
@@ -115,6 +125,7 @@ export default function AdminDashboard() {
       setLoadingRequests(false);
     }
   };
+
 
   if (loading)
     return (
@@ -197,7 +208,7 @@ export default function AdminDashboard() {
 
         {/* Inventory Section */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border">
-          <h3 className="font-semibold text-gray-800 mb-4">Inventory Overview</h3>
+          <h3 className="font-semibold text-gray-800 mb-4">🩸 Inventory Overview</h3>
           <div className="mb-4 flex gap-3 items-center">
             <label className="text-sm text-gray-600">Filter by Blood Bank:</label>
             <select
@@ -242,7 +253,7 @@ export default function AdminDashboard() {
         {/* Donations Section */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold text-gray-800">Donations</h3>
+            <h3 className="font-semibold text-gray-800">💉 Donations</h3>
             <button onClick={fetchDonations} className="text-sm text-red-600 hover:underline">
               {showDonations ? "Refresh" : "View All"}
             </button>
@@ -289,7 +300,7 @@ export default function AdminDashboard() {
         {/* Request History Section */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold text-gray-800">Request History</h3>
+            <h3 className="font-semibold text-gray-800">🏥 Request History</h3>
             <button onClick={fetchRequests} className="text-sm text-red-600 hover:underline">
               {showRequests ? "Refresh" : "View All"}
             </button>
@@ -362,6 +373,46 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
+
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6">
+      <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+        <span>🚚</span> Blood Unit Transfer Log
+      </h3>
+      
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="text-gray-400 border-b">
+              <th className="pb-3 font-medium">Date</th>
+              <th className="pb-3 font-medium">Blood Group</th>
+              <th className="pb-3 font-medium">From</th>
+              <th className="pb-3 font-medium">To (Collection Point)</th>
+              <th className="pb-3 font-medium">Hospital</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {transfers.map((t) => (
+              <tr key={t.id} className="hover:bg-gray-50 transition-colors">
+                <td className="py-3 text-gray-500">
+                  {new Date(t.transfer_date).toLocaleDateString()}
+                </td>
+                <td className="py-3 font-bold text-red-600">{t.blood_group}</td>
+                <td className="py-3 text-gray-700">{t.from_bank_name}</td>
+                <td className="py-3 font-medium text-blue-600">
+                  {t.to_bank_name}
+                </td>
+                <td className="py-3 text-gray-500 italic">
+                  {t.associated_hospital || "N/A"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {transfers.length === 0 && (
+          <p className="text-center py-6 text-gray-400">No transfers recorded yet.</p>
+        )}
+      </div>
+    </div>
 
       </main>
     </div>
