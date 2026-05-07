@@ -167,7 +167,7 @@ const getCompletedRequests = async (req, res) => {
 //        ORDER BY h.hospital_name`,
 //       [userState]
 //     );
-
+  
 //     res.json(result.rows);
 //   } catch (err) {
 //     console.error(err);
