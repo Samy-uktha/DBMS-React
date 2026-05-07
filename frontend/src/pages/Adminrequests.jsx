@@ -143,11 +143,12 @@ export default function AdminRequests() {
       });
       const data = await res.json();
       if (res.ok) {
-        setActionMsg({ type: "success", text: data.message || "Auto-fulfill complete!" });
-        fetchRequests();
-      } else {
-        setActionMsg({ type: "error", text: data.error || "Failed" });
-      }
+  setActionMsg({ 
+    type: data.total_issued > 0 ? "success" : "error", 
+    text: `Auto-fulfill complete — ${data.total_issued} unit(s) issued across ${data.requests_fulfilled} request(s).` 
+  });
+  fetchRequests();
+}
     } catch {
       setActionMsg({ type: "error", text: "Network error" });
     } finally {
@@ -370,7 +371,7 @@ export default function AdminRequests() {
                     <p className="text-sm text-gray-400 text-center py-6">No pending requests</p>
                   ) : (
                     <div className="space-y-2">
-                      {displayList.map((r, i) => <RequestRow key={r.id} rank={i + 1} r={r} showFulfill={false} />)}
+                      {displayList.map((r, i) => <RequestRow key={r.id} rank={i + 1} r={r} showFulfill={false} showHospitalName={true} />)}
                     </div>
                   )}
                 </div>
@@ -437,6 +438,8 @@ export default function AdminRequests() {
                             r={r}
                             showFulfill={r.status !== "COMPLETED" && r.status !== "CANCELLED"}
                             onFulfill={() => openFulfillModal(r)}
+                            showHospitalName={false}
+                            
                           />
                         ))}
                       </div>
@@ -655,26 +658,86 @@ export default function AdminRequests() {
   );
 }
 
-function RequestRow({ r, rank, showFulfill, onFulfill }) {
-  const pct = r.units_requested > 0 ? Math.round((r.units_fulfilled / r.units_requested) * 100) : 0;
+function RequestRow({ r, rank, showFulfill, onFulfill,showHospitalName }) {
+  const pct =
+    r.units_requested > 0
+      ? Math.round((r.units_fulfilled / r.units_requested) * 100)
+      : 0;
+
   return (
     <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50/50 transition-all group">
+      
       {rank !== undefined && (
-        <div className="w-7 h-7 rounded-full bg-red-100 text-red-600 text-xs font-black flex items-center justify-center shrink-0">{rank}</div>
+        <div className="w-7 h-7 rounded-full bg-red-100 text-red-600 text-xs font-black flex items-center justify-center shrink-0">
+          {rank}
+        </div>
       )}
-      <div className="w-10 h-10 rounded-xl bg-red-600 text-white font-black text-xs flex items-center justify-center shrink-0 leading-tight text-center">{r.blood_group}</div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-semibold text-gray-600">{r.units_fulfilled}/{r.units_requested} units</span>
-          <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${STATUS_COLORS[r.status] || "bg-gray-50 text-gray-500 border-gray-200"}`}>{r.status.replace("_", " ")}</span>
-        </div>
-        <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-          <div className={`h-1.5 rounded-full transition-all ${pct === 100 ? "bg-emerald-500" : "bg-red-500"}`} style={{ width: `${pct}%` }} />
-        </div>
-        <p className="text-[10px] text-gray-400 mt-0.5">{pct}% · Requested {new Date(r.created_at).toLocaleDateString()}</p>
+
+      {/* Blood group */}
+      <div className="w-10 h-10 rounded-xl bg-red-600 text-white font-black text-xs flex items-center justify-center shrink-0 leading-tight text-center">
+        {r.blood_group}
       </div>
+
+     {/* Main Content */}
+
+<div className="flex-1 min-w-0">
+
+  <div className="flex items-center justify-between mb-1">
+
+    <div>
+      {showHospitalName && (
+        <p className="text-sm font-semibold text-gray-800 truncate">
+          {r.hospital_name}
+        </p>
+      )}
+
+      {(r.city || r.state) && (
+        <p className="text-[11px] text-gray-400">
+          {r.city}
+          {r.city && r.state ? ", " : ""}
+          {r.state}
+        </p>
+      )}
+    </div>
+
+    <span
+      className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
+        STATUS_COLORS[r.status] ||
+        "bg-gray-50 text-gray-500 border-gray-200"
+      }`}
+    >
+      {r.status.replace("_", " ")}
+    </span>
+  </div>
+
+  {/* Progress */}
+  <div className="flex justify-between items-center">
+    <span className="text-xs font-semibold text-gray-600">
+      {r.units_fulfilled}/{r.units_requested} units
+    </span>
+
+    <span className="text-[10px] text-gray-400">
+      {pct}%
+    </span>
+  </div>
+
+  {/* Progress Bar */}
+  <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden mt-2">
+    <div
+      className="bg-red-500 h-1.5 rounded-full transition-all"
+      style={{ width: `${pct}%` }}
+    />
+  </div>
+</div>
+
+      {/* Fulfill Button */}
       {showFulfill && (
-        <button onClick={onFulfill} className="shrink-0 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-red-700 transition-all opacity-0 group-hover:opacity-100">Fulfill</button>
+        <button
+          onClick={onFulfill}
+          className="shrink-0 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-red-700 transition-all opacity-0 group-hover:opacity-100"
+        >
+          Fulfill
+        </button>
       )}
     </div>
   );

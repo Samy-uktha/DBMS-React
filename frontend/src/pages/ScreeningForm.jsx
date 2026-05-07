@@ -23,7 +23,7 @@ export default function ScreeningForm() {
   // Fetch hospitals in donor's city/state
   useEffect(() => {
     if (!auth?.token) return;
-    fetch('http://localhost:5000/api/admin/hospitals-list', {
+    fetch('http://localhost:5000/api/donor/donorhospitals', {
       headers: { Authorization: `Bearer ${auth.token}` },
     })
       .then((r) => r.json())
