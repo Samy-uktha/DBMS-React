@@ -147,27 +147,37 @@ const getCompletedRequests = async (req, res) => {
   }
 };
 
+// const getHospitalsList = async (req, res) => {
+//   try {
+//     const userResult = await pool.query(
+//       'SELECT state FROM users WHERE id = $1',
+//       [req.user.id]
+//     );
+
+//     if (userResult.rows.length === 0)
+//       return res.status(404).json({ error: 'User not found' });
+
+//     const userState = userResult.rows[0].state;
+
+//     const result = await pool.query(
+//       `SELECT h.id, h.hospital_name, h.license_number, u.city, u.state
+//        FROM hospitals h
+//        JOIN users u ON u.id = h.user_id
+//        WHERE LOWER(u.state) = LOWER($1)
+//        ORDER BY h.hospital_name`,
+//       [userState]
+//     );
+  
+//     res.json(result.rows);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: 'Error fetching hospitals' });
+//   }
+// };
+
 const getHospitalsList = async (req, res) => {
   try {
-    const userResult = await pool.query(
-      'SELECT state FROM users WHERE id = $1',
-      [req.user.id]
-    );
-
-    if (userResult.rows.length === 0)
-      return res.status(404).json({ error: 'User not found' });
-
-    const userState = userResult.rows[0].state;
-
-    const result = await pool.query(
-      `SELECT h.id, h.hospital_name, h.license_number, u.city, u.state
-       FROM hospitals h
-       JOIN users u ON u.id = h.user_id
-       WHERE LOWER(u.state) = LOWER($1)
-       ORDER BY h.hospital_name`,
-      [userState]
-    );
-
+    const result = await pool.query(`SELECT * FROM hospitals_list_view`);
     res.json(result.rows);
   } catch (err) {
     console.error(err);

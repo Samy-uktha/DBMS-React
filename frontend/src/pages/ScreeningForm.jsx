@@ -13,17 +13,17 @@ export default function ScreeningForm() {
     last_donation_date: '', remarks: '',
   });
 
-  const [hospitals, setHospitals]         = useState([]);
+  const [hospitals, setHospitals]               = useState([]);
   const [hospitalsLoading, setHospitalsLoading] = useState(true);
   const [selectedHospital, setSelectedHospital] = useState('');
 
   const [error,   setError]   = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Fetch hospitals in donor's city/state
+  // ✅ FIXED: was /api/donor/donorhospitals (missing 's'), now /api/donors/donorhospitals
   useEffect(() => {
     if (!auth?.token) return;
-    fetch('http://localhost:5000/api/admin/hospitals-list', {
+    fetch('http://localhost:5000/api/donors/donorhospitals', {
       headers: { Authorization: `Bearer ${auth.token}` },
     })
       .then((r) => r.json())
@@ -36,9 +36,9 @@ export default function ScreeningForm() {
 
   const validateForm = () => {
     if (!selectedHospital) {
-    setError('Please select a screening hospital before proceeding.');
-    return false;
-  }
+      setError('Please select a screening hospital before proceeding.');
+      return false;
+    }
     if (form.hemoglobin_level < 5 || form.hemoglobin_level > 30) {
       setError('Invalid hemoglobin level');
       return false;
@@ -57,17 +57,16 @@ export default function ScreeningForm() {
     setError('');
     setLoading(true);
     try {
-      // hospital_id is intentionally NOT sent — no schema change needed
       const res = await fetch('http://localhost:5000/api/screening', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
         body:    JSON.stringify({
-          hemoglobin_level: form.hemoglobin_level,
-          blood_pressure:   form.blood_pressure,
-          weight:           form.weight,
+          hemoglobin_level:   form.hemoglobin_level,
+          blood_pressure:     form.blood_pressure,
+          weight:             form.weight,
           last_donation_date: form.last_donation_date || undefined,
-          remarks:          form.remarks || undefined,
-          hospital_id:      selectedHospital || undefined,
+          remarks:            form.remarks || undefined,
+          hospital_id:        selectedHospital || undefined,
         }),
       });
       const data = await res.json();
@@ -149,8 +148,8 @@ export default function ScreeningForm() {
                 Loading hospitals...
               </div>
             ) : hospitals.length === 0 ? (
-              <div className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50 text-gray-400">
-                No hospitals found in your area
+              <div className="w-full border border-red-100 rounded-xl px-4 py-2.5 text-sm bg-red-50 text-red-400">
+                No hospitals found in your state — make sure your profile has the correct state set.
               </div>
             ) : (
               <select
@@ -219,7 +218,6 @@ export default function ScreeningForm() {
             <input type="date"
               disabled={!selectedHospital}
               value={form.last_donation_date}
-
               onChange={e => setForm({ ...form, last_donation_date: e.target.value })}
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50
                          focus:outline-none focus:ring-2 focus:ring-red-400"

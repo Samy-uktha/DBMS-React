@@ -58,7 +58,6 @@ const donate = async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    // RAISE EXCEPTION messages from Postgres land in err.message
     if (err.message.startsWith('DONOR_NOT_FOUND'))
       return res.status(404).json({ error: 'Donor not found' });
     if (err.message.startsWith('NO_PASSED_SCREENING'))
@@ -70,35 +69,6 @@ const donate = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
-
-// const donate = async (req, res) => {
-//   const userId = req.user.id;
-//   const { blood_bank_id, units_collected } = req.body;
-//   const units = units_collected || 3;
-
-//   try {
-//     // We just call the procedure. Postgres handles the transaction.
-//     const result = await pool.query(
-//       'CALL public.process_donor_donation($1, $2, $3, NULL)', 
-//       [userId, blood_bank_id, units]
-//     );
-
-//     res.status(201).json({ 
-//       message: 'Donation successful', 
-//       donationId: result.rows[0]?.p_donation_id 
-//     });
-
-//   } catch (err) {
-//     console.error('DB Procedure Error:', err.message);
-    
-//     // Postgres 'RAISE EXCEPTION' messages show up here in err.message
-//     if (err.message.includes('No passed screening')) {
-//         return res.status(400).json({ error: err.message });
-//     }
-    
-//     res.status(500).json({ error: 'Donation failed: ' + err.message });
-//   }
-// };
 
 const getEligibility = async (req, res) => {
   const userId = req.user.id;
@@ -118,10 +88,10 @@ const getEligibility = async (req, res) => {
     const row = result.rows[0];
 
     res.json({
-      eligibility_status:       row.eligibility_status,
-      latest_screening_date:    row.latest_screening_date,
-      last_donation_date:       row.last_donation_date,
-      eligible_after:           row.eligible_after,
+      eligibility_status:    row.eligibility_status,
+      latest_screening_date: row.latest_screening_date,
+      last_donation_date:    row.last_donation_date,
+      eligible_after:        row.eligible_after,
     });
 
   } catch (err) {
@@ -129,6 +99,7 @@ const getEligibility = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
 const getDonationHistory = async (req, res) => {
   const userId = req.user.id;
 
@@ -163,4 +134,57 @@ const getDonationHistory = async (req, res) => {
   }
 };
 
-module.exports = { createDonor, getMyProfile, donate, getEligibility ,getDonationHistory};
+// ✅ FIXED: Returns hospitals in the same state as the donor
+// so the donor can choose where to go for screening
+const getDonorHospitals = async (req, res) => {
+  try {
+    // Step 1: get the donor's state from the users table
+    const userResult = await pool.query(
+      'SELECT state FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (userResult.rows.length === 0)
+      return res.status(404).json({ error: 'User not found' });
+
+    const userState = userResult.rows[0].state;
+
+    if (!userState || userState.trim() === '') {
+      return res.status(400).json({ error: 'Your profile does not have a state set. Please update your profile.' });
+    }
+
+    console.log('Donor user id:', req.user.id, '| state:', JSON.stringify(userState));
+
+    // Step 2: find all hospitals whose linked user account has a matching state
+    // Uses ILIKE for case-insensitive matching and trims whitespace on both sides
+    const result = await pool.query(
+  `SELECT *
+   FROM hospitals_list_view
+   WHERE TRIM(LOWER(state)) = TRIM(LOWER($1))
+   ORDER BY hospital_name ASC`,
+  [userState]
+
+    );
+
+    console.log('Hospitals matched:', result.rows.length);
+
+    // Step 3: if nothing found, return empty list with a helpful message header
+    if (result.rows.length === 0) {
+      return res.json([]);   // frontend will show "no hospitals in your state"
+    }
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error fetching hospitals' });
+  }
+};
+
+module.exports = {
+  createDonor,
+  getMyProfile,
+  donate,
+  getEligibility,
+  getDonationHistory,
+  getDonorHospitals,
+};
